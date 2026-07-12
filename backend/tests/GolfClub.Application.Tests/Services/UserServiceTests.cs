@@ -23,6 +23,10 @@ public class UserServiceTests
     public UserServiceTests()
     {
         _dateTimeProvider.Setup(p => p.Now).Returns(Now);
+        // Make the mock actually invoke the wrapped operation, same as the real transaction
+        // wrapper does — otherwise SetActiveAsync/SetAdminAsync's bodies would never run.
+        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<CancellationToken>()))
+            .Returns<Func<Task>, CancellationToken>((operation, _) => operation());
         _sut = new UserService(
             _users.Object, _unitOfWork.Object, _passwordHasher.Object, _tokenGenerator.Object, _dateTimeProvider.Object);
     }
@@ -128,5 +132,110 @@ public class UserServiceTests
         results.Should().ContainSingle();
         results[0].Id.Should().Be(user.Id);
         results[0].Name.Should().Be("Alice Smith");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_ReturnsFullDetailForEveryUser()
+    {
+        var user = new User("Admin", "admin@testadmin.com", "hash", Now, isAdmin: true);
+        _users.Setup(u => u.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([user]);
+
+        var results = await _sut.GetAllAsync();
+
+        results.Should().ContainSingle();
+        results[0].Email.Should().Be("admin@testadmin.com");
+        results[0].IsAdmin.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenUserDoesNotExist_ThrowsNotFound()
+    {
+        _users.Setup(u => u.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
+
+        var act = () => _sut.GetByIdAsync(Guid.NewGuid());
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Fact]
+    public async Task SetActiveAsync_DeactivatesUserAndSaves()
+    {
+        var user = new User("Alice Smith", "alice@example.com", "hash", Now);
+        _users.Setup(u => u.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+
+        await _sut.SetActiveAsync(user.Id, false);
+
+        user.IsActive.Should().BeFalse();
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SetActiveAsync_AcquiresLockInsideTheSameTransactionBeforeReadingTheUser()
+    {
+        // The lock has to be held for the whole read-check-write sequence, or a concurrent
+        // request could still slip in between the lock release and the read. Verifying both
+        // that ExecuteInTransactionAsync wraps the call and that the lock is acquired confirms
+        // the ordering is right, not just that the pieces exist independently.
+        var user = new User("Alice Smith", "alice@example.com", "hash", Now);
+        _users.Setup(u => u.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+
+        await _sut.SetActiveAsync(user.Id, false);
+
+        _unitOfWork.Verify(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWork.Verify(u => u.AcquireExclusiveLockAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SetAdminAsync_PromotesUserAndSaves()
+    {
+        var user = new User("Alice Smith", "alice@example.com", "hash", Now);
+        _users.Setup(u => u.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+
+        await _sut.SetAdminAsync(user.Id, true);
+
+        user.IsAdmin.Should().BeTrue();
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SetAdminAsync_WhenDemotingTheOnlyActiveAdmin_ThrowsWithoutSaving()
+    {
+        var admin = new User("Admin", "admin@testAdmin.com", "hash", Now, isAdmin: true);
+        _users.Setup(u => u.GetByIdAsync(admin.Id, It.IsAny<CancellationToken>())).ReturnsAsync(admin);
+        _users.Setup(u => u.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([admin]);
+
+        var act = () => _sut.SetAdminAsync(admin.Id, false);
+
+        await act.Should().ThrowAsync<DomainException>().WithMessage("*last remaining admin*");
+        admin.IsAdmin.Should().BeTrue();
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SetAdminAsync_WhenDemotingOneOfSeveralActiveAdmins_Succeeds()
+    {
+        var admin = new User("Admin", "admin@testAdmin.com", "hash", Now, isAdmin: true);
+        var otherAdmin = new User("Other Admin", "other@testAdmin.com", "hash", Now, isAdmin: true);
+        _users.Setup(u => u.GetByIdAsync(admin.Id, It.IsAny<CancellationToken>())).ReturnsAsync(admin);
+        _users.Setup(u => u.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([admin, otherAdmin]);
+
+        await _sut.SetAdminAsync(admin.Id, false);
+
+        admin.IsAdmin.Should().BeFalse();
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SetActiveAsync_WhenDeactivatingTheOnlyActiveAdmin_ThrowsWithoutSaving()
+    {
+        var admin = new User("Admin", "admin@testAdmin.com", "hash", Now, isAdmin: true);
+        _users.Setup(u => u.GetByIdAsync(admin.Id, It.IsAny<CancellationToken>())).ReturnsAsync(admin);
+        _users.Setup(u => u.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([admin]);
+
+        var act = () => _sut.SetActiveAsync(admin.Id, false);
+
+        await act.Should().ThrowAsync<DomainException>().WithMessage("*last remaining admin*");
+        admin.IsActive.Should().BeTrue();
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }

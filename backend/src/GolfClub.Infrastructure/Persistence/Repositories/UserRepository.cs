@@ -34,6 +34,9 @@ public class UserRepository : IUserRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<User>> GetAllAsync(CancellationToken ct = default) =>
+        await _context.Users.AsNoTracking().OrderBy(u => u.Name).ToListAsync(ct);
+
     public async Task AddAsync(User user, CancellationToken ct = default) =>
         await _context.Users.AddAsync(user, ct);
 }
