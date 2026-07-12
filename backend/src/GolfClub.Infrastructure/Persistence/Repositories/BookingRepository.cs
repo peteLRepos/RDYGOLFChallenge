@@ -15,7 +15,7 @@ public class BookingRepository : IBookingRepository
     }
 
     public Task<Booking?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        _context.Bookings.FirstOrDefaultAsync(b => b.Id == id, ct);
+        _context.Bookings.Include(b => b.Resource).FirstOrDefaultAsync(b => b.Id == id, ct);
 
     public async Task<List<Booking>> GetByResourceAndDateAsync(Guid resourceId, DateOnly date, CancellationToken ct = default)
     {
@@ -23,6 +23,7 @@ public class BookingRepository : IBookingRepository
         var dayEnd = date.ToDateTime(TimeOnly.MaxValue);
 
         return await _context.Bookings
+            .AsNoTracking()
             .Where(b => b.ResourceId == resourceId
                         && b.Status == BookingStatus.Confirmed
                         && b.Start < dayEnd
@@ -33,6 +34,7 @@ public class BookingRepository : IBookingRepository
 
     public async Task<List<Booking>> GetAllAsync(CancellationToken ct = default) =>
         await _context.Bookings
+            .AsNoTracking()
             .Include(b => b.Resource)
             .OrderByDescending(b => b.Start)
             .ToListAsync(ct);

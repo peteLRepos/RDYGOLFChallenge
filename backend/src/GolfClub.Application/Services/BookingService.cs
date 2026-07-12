@@ -48,6 +48,13 @@ public class BookingService : IBookingService
         return bookings.Select(b => ToDto(b)).ToList();
     }
 
+    public async Task<BookingDto> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        var booking = await _bookings.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException($"Booking '{id}' was not found.");
+        return ToDto(booking);
+    }
+
     public async Task<BookingDto> CreateAsync(CreateBookingRequest request, CancellationToken ct = default)
     {
         var resource = await _resources.GetByIdAsync(request.ResourceId, ct)

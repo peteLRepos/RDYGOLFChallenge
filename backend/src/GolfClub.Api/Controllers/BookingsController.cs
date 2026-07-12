@@ -15,11 +15,18 @@ public class BookingsController : ControllerBase
         _bookingService = bookingService;
     }
 
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    {
+        var booking = await _bookingService.GetByIdAsync(id, ct);
+        return Ok(booking);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateBookingRequest request, CancellationToken ct)
     {
         var booking = await _bookingService.CreateAsync(request, ct);
-        return CreatedAtAction(nameof(Create), new { id = booking.Id }, booking);
+        return CreatedAtAction(nameof(GetById), new { id = booking.Id }, booking);
     }
 
     [HttpDelete("{id:guid}")]

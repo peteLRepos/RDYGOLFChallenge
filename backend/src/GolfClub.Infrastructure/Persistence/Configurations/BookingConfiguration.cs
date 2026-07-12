@@ -32,5 +32,12 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
 
         // Speeds up the overlap-check query the application layer runs on every booking attempt.
         builder.HasIndex(b => new { b.ResourceId, b.Start, b.End });
+
+        // Unidirectional: Resource doesn't expose a Bookings collection (nothing in the codebase
+        // needs to navigate resource -> bookings; BookingRepository queries Bookings directly).
+        builder.HasOne(b => b.Resource)
+            .WithMany()
+            .HasForeignKey(b => b.ResourceId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
