@@ -27,6 +27,10 @@ public class ExceptionHandlingMiddleware
             var (statusCode, message) = ex switch
             {
                 NotFoundException => (HttpStatusCode.NotFound, ex.Message),
+                UnauthorizedException => (HttpStatusCode.Unauthorized, ex.Message),
+                // Fallback for callers that don't translate it into a more specific message
+                // themselves (see UserService.RegisterAsync for the usual case).
+                ConflictException => (HttpStatusCode.Conflict, ex.Message),
                 DomainException => (HttpStatusCode.BadRequest, ex.Message),
                 _ => (HttpStatusCode.InternalServerError, "An unexpected error occurred.")
             };

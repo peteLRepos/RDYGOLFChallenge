@@ -27,6 +27,17 @@ public class UserTests
     }
 
     [Theory]
+    [InlineData("Alice@Example.com", "alice@example.com")]
+    [InlineData("  alice@example.com  ", "alice@example.com")]
+    [InlineData("ALICE@EXAMPLE.COM", "alice@example.com")]
+    public void Constructor_NormalizesEmailCasingAndWhitespace(string input, string expected)
+    {
+        var user = new User("Alice Smith", input, "hashed-password", Now);
+
+        user.Email.Should().Be(expected);
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
@@ -44,6 +55,36 @@ public class UserTests
     public void Constructor_WithMissingEmail_Throws(string? email)
     {
         var act = () => new User("Alice Smith", email!, "hashed-password", Now);
+
+        act.Should().Throw<DomainException>().WithMessage("*Email*");
+    }
+
+    [Fact]
+    public void Constructor_WithNameExceedingMaxLength_Throws()
+    {
+        var tooLongName = new string('A', User.MaxNameLength + 1);
+
+        var act = () => new User(tooLongName, "alice@example.com", "hashed-password", Now);
+
+        act.Should().Throw<DomainException>().WithMessage("*Name*");
+    }
+
+    [Fact]
+    public void Constructor_WithNameAtMaxLength_DoesNotThrow()
+    {
+        var maxLengthName = new string('A', User.MaxNameLength);
+
+        var act = () => new User(maxLengthName, "alice@example.com", "hashed-password", Now);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Constructor_WithEmailExceedingMaxLength_Throws()
+    {
+        var tooLongEmail = new string('a', User.MaxEmailLength - 11) + "@example.com";
+
+        var act = () => new User("Alice Smith", tooLongEmail, "hashed-password", Now);
 
         act.Should().Throw<DomainException>().WithMessage("*Email*");
     }

@@ -42,9 +42,18 @@ setup:
   (`alice@example.com` / `bob@example.com`, both password `Password123`) — passwords are hashed with
   ASP.NET Core's `PasswordHasher`, never stored plain, even for these seed accounts
 
-The admin app is gated by a shared key (not real authentication — see below). For local/demo use,
-enter `dev-admin-key` in the admin app's "Admin key" field. This is configured via `Admin:ApiKey` in
-`backend/src/GolfClub.Api/appsettings.json`.
+**User accounts**: `POST /api/users` registers a new user and logs them in immediately (returns a JWT).
+`POST /api/auth/login` logs an existing user in. `GET /api/users/search?q=` is a public, name-only
+lookup (id+name only) used to find users when creating a booking — it deliberately never returns
+email/admin-status for privacy. Try it with the seeded accounts above.
+
+The admin app is still gated by a shared key for now (`AdminResourcesController`/`AdminBookingsController`
+haven't been switched over to JWT yet — that's the next PR, which will also add admin endpoints for
+listing/managing users). Enter `dev-admin-key` in the admin app's "Admin key" field. Configured via
+`Admin:ApiKey` in `backend/src/GolfClub.Api/appsettings.json`.
+
+The JWT signing key (`Jwt:Secret` in `appsettings.json`) is a dev-only placeholder, same as the admin
+key — see the out-of-scope section below.
 
 To stop everything: `make stop` (or `docker compose down`). `make clean` also removes the Postgres
 volume if you want a fully fresh database.
@@ -59,7 +68,12 @@ volume if you want a fully fresh database.
 - **Booking overlap check is a query, not a DB constraint.** `BookingService.CreateAsync` checks for
   overlapping bookings before inserting, inside a single request — there's a small race-condition window
   under concurrent requests for the same slot. A production version would add a Postgres exclusion
-  constraint (`EXCLUDE USING gist`) on `(ResourceId, tsrange(Start, End))` as a hard backstop.
+  constraint (`EXCLUDE USING gist`) on `(ResourceId, tsrange(Start, End))` as a hard backstop. `User.Email`
+  uniqueness has the same race-condition shape, backstopped by a unique DB index (`UserConfiguration`) —
+  unlike the booking case, the backstop being hit is handled gracefully: `UnitOfWork.SaveChangesAsync`
+  translates the underlying unique-constraint violation into a generic `ConflictException`, and
+  `UserService.RegisterAsync` reports it with the exact same "email already exists" message the
+  synchronous check gives, instead of surfacing a raw 500.
 - **Booking cancellation has no ownership check.** Any booking ID can be cancelled via the public
   `DELETE /api/bookings/{id}` endpoint. A real version would require the customer's email or a
   confirmation token to prove ownership.
@@ -71,10 +85,13 @@ volume if you want a fully fresh database.
 - **Payments**: not implemented, per the assignment. Would integrate Stripe/PayPal at the point of
   booking confirmation, with a `Payment` entity linked to `Booking` and a webhook handler for
   payment-status updates.
-- **Real authentication/authorization**: the admin app currently uses a single shared API key
-  (`X-Admin-Key` header) checked by `AdminAuthFilter` — good enough to gate the admin API for a
-  take-home, not for production. I'd replace this with ASP.NET Core Identity or an external IdP
-  (Auth0/Entra ID) issuing JWTs, per-admin accounts, and role-based policies instead of a shared secret.
+- **Production-grade authentication**: user registration/login now issue real JWTs (signed,
+  role-claim-based, `PasswordHasher`-hashed passwords) rather than a shared secret — a step up from
+  the original plan, but still not production-hardened: `Jwt:Secret` is a plaintext dev value in
+  `appsettings.json` rather than a managed secret (Key Vault/Secrets Manager), there's no token
+  refresh/revocation, and the admin endpoints haven't been switched from `X-Admin-Key` to
+  `[Authorize(Roles="Admin")]` yet (planned next). For production I'd also add rate limiting on
+  `/api/auth/login` to slow down credential-stuffing attempts.
 - **Deployment**: currently local-only via Docker Compose. Production would run the API and both
   frontends as separate deployable images (e.g. Azure Container Apps/ECS), Postgres as a managed
   service (Azure Database for PostgreSQL/RDS) rather than a container, and the frontends behind a
