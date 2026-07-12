@@ -18,7 +18,7 @@ public class ResourceRepository : IResourceRepository
 
     public async Task<List<Resource>> GetAllAsync(bool includeInactive, CancellationToken ct = default)
     {
-        var query = _context.Resources.AsQueryable();
+        var query = _context.Resources.AsNoTracking().AsQueryable();
         if (!includeInactive)
             query = query.Where(r => r.IsActive);
 
@@ -27,6 +27,4 @@ public class ResourceRepository : IResourceRepository
 
     public async Task AddAsync(Resource resource, CancellationToken ct = default) =>
         await _context.Resources.AddAsync(resource, ct);
-
-    public void Update(Resource resource) => _context.Resources.Update(resource);
 }

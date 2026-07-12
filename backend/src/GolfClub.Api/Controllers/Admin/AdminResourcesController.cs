@@ -24,11 +24,18 @@ public class AdminResourcesController : ControllerBase
         return Ok(resources);
     }
 
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    {
+        var resource = await _resourceService.GetByIdAsync(id, ct);
+        return Ok(resource);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateResourceRequest request, CancellationToken ct)
     {
         var resource = await _resourceService.CreateAsync(request, ct);
-        return CreatedAtAction(nameof(GetAll), new { id = resource.Id }, resource);
+        return CreatedAtAction(nameof(GetById), new { id = resource.Id }, resource);
     }
 
     [HttpPut("{id:guid}")]

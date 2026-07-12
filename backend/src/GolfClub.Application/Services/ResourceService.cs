@@ -50,7 +50,6 @@ public class ResourceService : IResourceService
             ?? throw new NotFoundException($"Resource '{id}' was not found.");
 
         resource.Update(request.Name, request.SlotDurationMinutes, request.OpeningTime, request.ClosingTime);
-        _resources.Update(resource);
         await _unitOfWork.SaveChangesAsync(ct);
 
         return ToDto(resource);
@@ -66,7 +65,6 @@ public class ResourceService : IResourceService
         else
             resource.Deactivate();
 
-        _resources.Update(resource);
         await _unitOfWork.SaveChangesAsync(ct);
     }
 

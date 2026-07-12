@@ -32,10 +32,5 @@ public class ResourceConfiguration : IEntityTypeConfiguration<Resource>
 
         builder.Property(r => r.IsActive)
             .IsRequired();
-
-        builder.HasMany(r => r.Bookings)
-            .WithOne(b => b.Resource)
-            .HasForeignKey(b => b.ResourceId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }

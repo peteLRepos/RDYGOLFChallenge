@@ -13,9 +13,6 @@ public class Resource
     public TimeOnly ClosingTime { get; private set; }
     public bool IsActive { get; private set; }
 
-    private readonly List<Booking> _bookings = new();
-    public IReadOnlyCollection<Booking> Bookings => _bookings.AsReadOnly();
-
     private Resource()
     {
     }

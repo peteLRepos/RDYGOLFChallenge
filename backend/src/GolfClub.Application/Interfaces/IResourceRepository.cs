@@ -7,5 +7,4 @@ public interface IResourceRepository
     Task<Resource?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<Resource>> GetAllAsync(bool includeInactive, CancellationToken ct = default);
     Task AddAsync(Resource resource, CancellationToken ct = default);
-    void Update(Resource resource);
 }

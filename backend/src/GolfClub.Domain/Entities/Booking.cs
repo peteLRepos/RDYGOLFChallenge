@@ -32,7 +32,11 @@ public class Booking
             throw new DomainException("Customer email is required.");
         if (start >= end)
             throw new DomainException("Booking start must be before its end.");
-        if (start < DateTime.UtcNow)
+        // Start/End are naive timestamps representing club-local time (see README), so "now" must be
+        // compared on the same basis — DateTime.Now, not UtcNow, which would incorrectly reject valid
+        // future bookings in timezones behind UTC. This assumes the server's OS timezone is set to the
+        // club's local timezone.
+        if (start < DateTime.Now)
             throw new DomainException("Cannot book a time slot in the past.");
 
         Id = Guid.NewGuid();

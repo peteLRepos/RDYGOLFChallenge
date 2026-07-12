@@ -48,8 +48,10 @@ volume if you want a fully fresh database.
 ## Assumptions and trade-offs
 
 - **No timezones.** Booking times are stored and compared as naive local timestamps (no `DateTimeOffset`/UTC
-  conversion). Fine for a single-club, single-timezone booking sheet; would need proper timezone handling
-  for a multi-location product.
+  conversion) representing the club's own local time. This means the API container's OS timezone must
+  match the club's — set via the `TZ` environment variable on the `api` service in `docker-compose.yml`
+  (defaults to `Europe/Helsinki`; change it for a different location). Fine for a single-club,
+  single-timezone booking sheet; would need proper `DateTimeOffset`/UTC handling for a multi-location product.
 - **Booking overlap check is a query, not a DB constraint.** `BookingService.CreateAsync` checks for
   overlapping bookings before inserting, inside a single request — there's a small race-condition window
   under concurrent requests for the same slot. A production version would add a Postgres exclusion

@@ -24,6 +24,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       Cors__AllowedOrigins__0: "http://localhost:3000"
       Cors__AllowedOrigins__1: "http://localhost:3001"
+      # Booking Start/End are naive timestamps representing club-local time (see README) — the
+      # container's OS timezone must match the club's, since the API compares them to DateTime.Now.
+      TZ: "Europe/Helsinki"
     ports:
       - "5000:8080"
     depends_on:
