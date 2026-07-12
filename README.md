@@ -80,10 +80,22 @@ volume if you want a fully fresh database.
   rather than on API startup (auto-migrating on boot is convenient for this take-home but risky in
   production with multiple API replicas starting concurrently).
 
+## Testing
+
+`Booking`'s "now" (used for the past-time check and `CreatedAt`) is injected via `IDateTimeProvider`
+rather than read from `DateTime.Now` internally — the domain entity takes it as a constructor
+parameter, and `SystemDateTimeProvider` (Infrastructure) supplies the real clock at runtime via DI.
+This keeps domain/application unit tests deterministic: tests pass a fixed `DateTime` instead of
+depending on when the suite happens to run. Run them with:
+
+```
+dotnet test backend/GolfClub.sln
+```
+
 ## What I'd do next with more time
 
-- Automated tests: unit tests for domain invariants and application services (test projects are
-  scaffolded but currently empty), plus a handful of API integration tests.
+- More test coverage: `ResourceService` and API-level integration tests (domain invariants and
+  `BookingService` are covered; `ResourceService` and the controllers/middleware aren't yet).
 - A proper booking UI: calendar/date picker and slot grid on the booking site, rather than a flat list.
 - Admin resource create/edit forms and booking cancellation from the admin UI (currently read-only
   beyond what the API supports directly).

@@ -11,12 +11,18 @@ public class BookingService : IBookingService
     private readonly IBookingRepository _bookings;
     private readonly IResourceRepository _resources;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDateTimeProvider _dateTimeProvider;
 
-    public BookingService(IBookingRepository bookings, IResourceRepository resources, IUnitOfWork unitOfWork)
+    public BookingService(
+        IBookingRepository bookings,
+        IResourceRepository resources,
+        IUnitOfWork unitOfWork,
+        IDateTimeProvider dateTimeProvider)
     {
         _bookings = bookings;
         _resources = resources;
         _unitOfWork = unitOfWork;
+        _dateTimeProvider = dateTimeProvider;
     }
 
     public async Task<List<TimeSlotDto>> GetAvailabilityAsync(Guid resourceId, DateOnly date, CancellationToken ct = default)
@@ -70,7 +76,13 @@ public class BookingService : IBookingService
         if (hasOverlap)
             throw new DomainException("This time slot is already booked.");
 
-        var booking = new Booking(request.ResourceId, request.Start, request.End, request.CustomerName, request.CustomerEmail);
+        var booking = new Booking(
+            request.ResourceId,
+            request.Start,
+            request.End,
+            request.CustomerName,
+            request.CustomerEmail,
+            _dateTimeProvider.Now);
         await _bookings.AddAsync(booking, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 

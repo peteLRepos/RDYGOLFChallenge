@@ -19,12 +19,18 @@ public class Booking
     {
     }
 
+    /// <param name="now">
+    /// Current club-local time, supplied by the caller (via IDateTimeProvider in the application layer)
+    /// rather than read from the system clock here — keeps this constructor deterministic and testable
+    /// without mocking. Start/End/now are all naive timestamps representing club-local time (see README).
+    /// </param>
     public Booking(
         Guid resourceId,
         DateTime start,
         DateTime end,
         string customerName,
-        string customerEmail)
+        string customerEmail,
+        DateTime now)
     {
         if (string.IsNullOrWhiteSpace(customerName))
             throw new DomainException("Customer name is required.");
@@ -32,11 +38,7 @@ public class Booking
             throw new DomainException("Customer email is required.");
         if (start >= end)
             throw new DomainException("Booking start must be before its end.");
-        // Start/End are naive timestamps representing club-local time (see README), so "now" must be
-        // compared on the same basis — DateTime.Now, not UtcNow, which would incorrectly reject valid
-        // future bookings in timezones behind UTC. This assumes the server's OS timezone is set to the
-        // club's local timezone.
-        if (start < DateTime.Now)
+        if (start < now)
             throw new DomainException("Cannot book a time slot in the past.");
 
         Id = Guid.NewGuid();
@@ -46,9 +48,7 @@ public class Booking
         CustomerName = customerName;
         CustomerEmail = customerEmail;
         Status = BookingStatus.Confirmed;
-        // Stored as a naive timestamp alongside Start/End (see README) — strip the Kind marker so
-        // EF/Npgsql doesn't reject it as a Utc-kind value going into a "timestamp without time zone" column.
-        CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+        CreatedAt = now;
     }
 
     public bool OverlapsWith(DateTime otherStart, DateTime otherEnd)
