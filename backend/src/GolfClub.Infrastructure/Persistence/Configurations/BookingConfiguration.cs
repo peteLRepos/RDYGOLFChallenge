@@ -25,9 +25,10 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .HasMaxLength(20)
             .IsRequired();
 
-        builder.Property(b => b.Start).IsRequired();
-        builder.Property(b => b.End).IsRequired();
-        builder.Property(b => b.CreatedAt).IsRequired();
+        // Bookings are stored as naive local timestamps (no timezone handling in this scope — see README).
+        builder.Property(b => b.Start).HasColumnType("timestamp without time zone").IsRequired();
+        builder.Property(b => b.End).HasColumnType("timestamp without time zone").IsRequired();
+        builder.Property(b => b.CreatedAt).HasColumnType("timestamp without time zone").IsRequired();
 
         // Speeds up the overlap-check query the application layer runs on every booking attempt.
         builder.HasIndex(b => new { b.ResourceId, b.Start, b.End });

@@ -42,7 +42,9 @@ public class Booking
         CustomerName = customerName;
         CustomerEmail = customerEmail;
         Status = BookingStatus.Confirmed;
-        CreatedAt = DateTime.UtcNow;
+        // Stored as a naive timestamp alongside Start/End (see README) — strip the Kind marker so
+        // EF/Npgsql doesn't reject it as a Utc-kind value going into a "timestamp without time zone" column.
+        CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
     }
 
     public bool OverlapsWith(DateTime otherStart, DateTime otherEnd)

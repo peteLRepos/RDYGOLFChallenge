@@ -1,3 +1,6 @@
+using GolfClub.Api.Filters;
+using GolfClub.Api.Middleware;
+using GolfClub.Application;
 using GolfClub.Infrastructure;
 using GolfClub.Infrastructure.Persistence;
 
@@ -10,6 +13,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplication();
+builder.Services.AddScoped<AdminAuthFilter>();
 
 builder.Services.AddCors(options =>
 {
@@ -33,6 +38,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseCors(CorsPolicyName);
 app.UseAuthorization();
 app.MapControllers();
