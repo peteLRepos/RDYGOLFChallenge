@@ -1,13 +1,13 @@
-using GolfClub.Api.Filters;
 using GolfClub.Application.DTOs;
 using GolfClub.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GolfClub.Api.Controllers.Admin;
 
 [ApiController]
 [Route("api/admin/resources")]
-[ServiceFilter(typeof(AdminAuthFilter))]
+[Authorize(Roles = "Admin")]
 public class AdminResourcesController : ControllerBase
 {
     private readonly IResourceService _resourceService;

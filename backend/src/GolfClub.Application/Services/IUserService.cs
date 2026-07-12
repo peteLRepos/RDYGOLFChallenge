@@ -9,4 +9,13 @@ public interface IUserService
 
     /// <summary>Minimal id+name results for the booking-flow "who's booking" search — never full user detail.</summary>
     Task<List<UserSearchResultDto>> SearchAsync(string query, CancellationToken ct = default);
+
+    /// <summary>Full user detail — admin-only, never exposed via the public search endpoint.</summary>
+    Task<List<UserDto>> GetAllAsync(CancellationToken ct = default);
+
+    Task<UserDto> GetByIdAsync(Guid id, CancellationToken ct = default);
+
+    Task SetActiveAsync(Guid id, bool isActive, CancellationToken ct = default);
+
+    Task SetAdminAsync(Guid id, bool isAdmin, CancellationToken ct = default);
 }

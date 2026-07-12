@@ -47,13 +47,18 @@ setup:
 lookup (id+name only) used to find users when creating a booking — it deliberately never returns
 email/admin-status for privacy. Try it with the seeded accounts above.
 
-The admin app is still gated by a shared key for now (`AdminResourcesController`/`AdminBookingsController`
-haven't been switched over to JWT yet — that's the next PR, which will also add admin endpoints for
-listing/managing users). Enter `dev-admin-key` in the admin app's "Admin key" field. Configured via
-`Admin:ApiKey` in `backend/src/GolfClub.Api/appsettings.json`.
+**Admin access is now JWT-based**, not a shared key: log in as `admin@testAdmin.com` / `Admin` via
+`POST /api/auth/login`, then send the returned token as `Authorization: Bearer <token>` on
+`/api/admin/*` routes (`Resources`, `Bookings`, and `Users` — list/get/deactivate/promote). Non-admin
+tokens correctly get `403`; missing/invalid tokens get `401`.
 
-The JWT signing key (`Jwt:Secret` in `appsettings.json`) is a dev-only placeholder, same as the admin
-key — see the out-of-scope section below.
+⚠️ **The admin frontend (`admin-web`) hasn't been updated yet** — it still sends the old `X-Admin-Key`
+header, which the API no longer accepts, so its admin views will show `401` until the next PR replaces
+the "admin key" field with a real login form. Use the API directly (curl/Postman/Swagger) to exercise
+admin functionality until then.
+
+The JWT signing key (`Jwt:Secret` in `appsettings.json`) is a dev-only placeholder — see the out-of-scope
+section below.
 
 To stop everything: `make stop` (or `docker compose down`). `make clean` also removes the Postgres
 volume if you want a fully fresh database.
@@ -74,6 +79,13 @@ volume if you want a fully fresh database.
   translates the underlying unique-constraint violation into a generic `ConflictException`, and
   `UserService.RegisterAsync` reports it with the exact same "email already exists" message the
   synchronous check gives, instead of surfacing a raw 500.
+- **The last remaining admin can't be demoted or deactivated** (`UserService.SetAdminAsync`/`SetActiveAsync`
+  refuse the request if it would leave zero active admins) — there's no "break glass" recovery path
+  otherwise, since there's no way to log in as admin again to undo it. Unlike the email-uniqueness
+  race above, this invariant spans multiple rows (a count across the whole `Users` table), so a unique
+  index can't backstop it — instead, both methods run inside a transaction holding a Postgres advisory
+  lock (`UnitOfWork.AcquireExclusiveLockAsync`) for the whole read-check-write sequence, so two
+  concurrent requests can't both pass the check before either commits.
 - **Booking cancellation has no ownership check.** Any booking ID can be cancelled via the public
   `DELETE /api/bookings/{id}` endpoint. A real version would require the customer's email or a
   confirmation token to prove ownership.
@@ -85,13 +97,13 @@ volume if you want a fully fresh database.
 - **Payments**: not implemented, per the assignment. Would integrate Stripe/PayPal at the point of
   booking confirmation, with a `Payment` entity linked to `Booking` and a webhook handler for
   payment-status updates.
-- **Production-grade authentication**: user registration/login now issue real JWTs (signed,
-  role-claim-based, `PasswordHasher`-hashed passwords) rather than a shared secret — a step up from
-  the original plan, but still not production-hardened: `Jwt:Secret` is a plaintext dev value in
-  `appsettings.json` rather than a managed secret (Key Vault/Secrets Manager), there's no token
-  refresh/revocation, and the admin endpoints haven't been switched from `X-Admin-Key` to
-  `[Authorize(Roles="Admin")]` yet (planned next). For production I'd also add rate limiting on
-  `/api/auth/login` to slow down credential-stuffing attempts.
+- **Production-grade authentication**: all authentication (public login and the admin gate) is now
+  real JWT-based — signed tokens, role claims, `PasswordHasher`-hashed passwords, no more shared
+  secret anywhere in the API. Still not production-hardened, though: `Jwt:Secret` is a plaintext dev
+  value in `appsettings.json` rather than a managed secret (Key Vault/Secrets Manager), and there's no
+  token refresh/revocation (a token is valid for its full lifetime even if the user is deactivated
+  mid-session — deactivation only blocks *future* logins). For production I'd also add rate limiting
+  on `/api/auth/login` to slow down credential-stuffing attempts.
 - **Deployment**: currently local-only via Docker Compose. Production would run the API and both
   frontends as separate deployable images (e.g. Azure Container Apps/ECS), Postgres as a managed
   service (Azure Database for PostgreSQL/RDS) rather than a container, and the frontends behind a
@@ -115,8 +127,14 @@ dotnet test backend/GolfClub.sln
 
 ## What I'd do next with more time
 
+- **Update the admin frontend to use JWT login** instead of the now-removed `X-Admin-Key` field —
+  next planned PR.
+- Link `Booking` to `User` (a `BookedByUserId` plus optional group attendees) instead of the
+  current free-standing booking flow, so the booking site can use the new user-search endpoint to
+  pick who's booking — deliberately deferred to keep this PR focused on the user/auth foundation.
 - More test coverage: `ResourceService` and API-level integration tests (domain invariants and
-  `BookingService` are covered; `ResourceService` and the controllers/middleware aren't yet).
+  `BookingService`/`UserService`/`AuthService` are covered; `ResourceService` and the
+  controllers/middleware aren't yet).
 - A proper booking UI: calendar/date picker and slot grid on the booking site, rather than a flat list.
 - Admin resource create/edit forms and booking cancellation from the admin UI (currently read-only
   beyond what the API supports directly).

@@ -11,6 +11,11 @@ public class UserService : IUserService
     private const int MinimumSearchQueryLength = 2;
     private const int MinimumPasswordLength = 8;
 
+    // Arbitrary fixed identifier for the "at least one active admin must remain" invariant —
+    // see EnsureNotLastActiveAdminAsync. Any value works as long as it's unique within this
+    // codebase's set of advisory locks (there's only this one so far).
+    private const long AdminGuardLockId = 727100;
+
     private readonly IUserRepository _users;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
@@ -72,5 +77,76 @@ public class UserService : IUserService
 
         var users = await _users.SearchByNameAsync(query.Trim(), ct);
         return users.Select(u => new UserSearchResultDto(u.Id, u.Name)).ToList();
+    }
+
+    public async Task<List<UserDto>> GetAllAsync(CancellationToken ct = default)
+    {
+        var users = await _users.GetAllAsync(ct);
+        return users.Select(UserDto.FromEntity).ToList();
+    }
+
+    public async Task<UserDto> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        var user = await _users.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException($"User '{id}' was not found.");
+        return UserDto.FromEntity(user);
+    }
+
+    public Task SetActiveAsync(Guid id, bool isActive, CancellationToken ct = default) =>
+        // Wrapped in a transaction + advisory lock, not just the guard check below: without it,
+        // two concurrent requests could each pass EnsureNotLastActiveAdminAsync's read before
+        // either commits, both proceed, and leave zero active admins — the exact scenario this
+        // guard exists to prevent. The lock forces the second request to wait, re-read, and
+        // correctly fail once the first has committed. See UnitOfWork.AcquireExclusiveLockAsync.
+        _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            await _unitOfWork.AcquireExclusiveLockAsync(AdminGuardLockId, ct);
+
+            var user = await _users.GetByIdAsync(id, ct)
+                ?? throw new NotFoundException($"User '{id}' was not found.");
+
+            if (!isActive && user.IsAdmin)
+                await EnsureNotLastActiveAdminAsync(user, ct);
+
+            if (isActive)
+                user.Activate();
+            else
+                user.Deactivate();
+
+            await _unitOfWork.SaveChangesAsync(ct);
+        }, ct);
+
+    public Task SetAdminAsync(Guid id, bool isAdmin, CancellationToken ct = default) =>
+        // Same race-condition rationale as SetActiveAsync above.
+        _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            await _unitOfWork.AcquireExclusiveLockAsync(AdminGuardLockId, ct);
+
+            var user = await _users.GetByIdAsync(id, ct)
+                ?? throw new NotFoundException($"User '{id}' was not found.");
+
+            if (!isAdmin && user.IsAdmin)
+                await EnsureNotLastActiveAdminAsync(user, ct);
+
+            if (isAdmin)
+                user.PromoteToAdmin();
+            else
+                user.DemoteFromAdmin();
+
+            await _unitOfWork.SaveChangesAsync(ct);
+        }, ct);
+
+    /// <summary>
+    /// Guards against demoting/deactivating the only remaining admin, which would permanently lock
+    /// everyone out of the admin endpoints (no "break glass" recovery path exists in this scope).
+    /// Must only be called while holding the AdminGuardLockId lock (see callers above).
+    /// </summary>
+    private async Task EnsureNotLastActiveAdminAsync(User user, CancellationToken ct)
+    {
+        var allUsers = await _users.GetAllAsync(ct);
+        var hasOtherActiveAdmin = allUsers.Any(u => u.Id != user.Id && u.IsAdmin && u.IsActive);
+
+        if (!hasOtherActiveAdmin)
+            throw new DomainException("Cannot remove the last remaining admin.");
     }
 }

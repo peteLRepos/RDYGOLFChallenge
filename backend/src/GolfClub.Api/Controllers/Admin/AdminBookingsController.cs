@@ -1,12 +1,12 @@
-using GolfClub.Api.Filters;
 using GolfClub.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GolfClub.Api.Controllers.Admin;
 
 [ApiController]
 [Route("api/admin/bookings")]
-[ServiceFilter(typeof(AdminAuthFilter))]
+[Authorize(Roles = "Admin")]
 public class AdminBookingsController : ControllerBase
 {
     private readonly IBookingService _bookingService;
