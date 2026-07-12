@@ -35,8 +35,12 @@ This builds and starts four containers:
 | `booking-web` | http://localhost:3000     | Public booking site                      |
 | `admin-web`   | http://localhost:3001     | Admin panel                              |
 
-The API automatically applies EF Core migrations and seeds demo resources (a tee time, two driving
-range bays, two golf carts, a lesson slot, and a simulator bay) on first startup — no manual DB setup.
+The API automatically applies EF Core migrations and seeds demo data on first startup — no manual DB
+setup:
+- Resources: a tee time, two driving range bays, two golf carts, a lesson slot, and a simulator bay
+- Users: an admin account (`admin@testAdmin.com` / `Admin`) and two demo members
+  (`alice@example.com` / `bob@example.com`, both password `Password123`) — passwords are hashed with
+  ASP.NET Core's `PasswordHasher`, never stored plain, even for these seed accounts
 
 The admin app is gated by a shared key (not real authentication — see below). For local/demo use,
 enter `dev-admin-key` in the admin app's "Admin key" field. This is configured via `Admin:ApiKey` in

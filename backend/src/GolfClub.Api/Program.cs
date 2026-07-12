@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using GolfClub.Api.Filters;
 using GolfClub.Api.Middleware;
 using GolfClub.Application;
+using GolfClub.Application.Interfaces;
 using GolfClub.Infrastructure;
 using GolfClub.Infrastructure.Persistence;
 
@@ -31,7 +32,8 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<GolfClubDbContext>();
-    await DbSeeder.SeedAsync(context);
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+    await DbSeeder.SeedAsync(context, passwordHasher);
 }
 
 if (app.Environment.IsDevelopment())
