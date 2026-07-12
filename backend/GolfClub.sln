@@ -1,0 +1,64 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{649B1389-A8FD-4823-A1C5-44028B561D74}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GolfClub.Domain", "src\GolfClub.Domain\GolfClub.Domain.csproj", "{623F658A-5860-493A-9719-1F20BA43703A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GolfClub.Application", "src\GolfClub.Application\GolfClub.Application.csproj", "{58F21E7E-7047-4183-8C78-BE611720CBF9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GolfClub.Infrastructure", "src\GolfClub.Infrastructure\GolfClub.Infrastructure.csproj", "{426353A4-8897-4666-AF02-AF0B76EDAEF8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GolfClub.Api", "src\GolfClub.Api\GolfClub.Api.csproj", "{058C35CD-C9B3-4623-AA44-8EBA97ED7EF4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{1BD86276-BB92-4E15-8F29-04F0FEEDC122}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GolfClub.Domain.Tests", "tests\GolfClub.Domain.Tests\GolfClub.Domain.Tests.csproj", "{DC701601-46CB-4429-B630-B28292F0B871}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GolfClub.Application.Tests", "tests\GolfClub.Application.Tests\GolfClub.Application.Tests.csproj", "{88C8AB4D-4480-4837-9F6B-906E67615C50}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{623F658A-5860-493A-9719-1F20BA43703A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{623F658A-5860-493A-9719-1F20BA43703A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{623F658A-5860-493A-9719-1F20BA43703A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{623F658A-5860-493A-9719-1F20BA43703A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58F21E7E-7047-4183-8C78-BE611720CBF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58F21E7E-7047-4183-8C78-BE611720CBF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58F21E7E-7047-4183-8C78-BE611720CBF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58F21E7E-7047-4183-8C78-BE611720CBF9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{426353A4-8897-4666-AF02-AF0B76EDAEF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{426353A4-8897-4666-AF02-AF0B76EDAEF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{426353A4-8897-4666-AF02-AF0B76EDAEF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{426353A4-8897-4666-AF02-AF0B76EDAEF8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{058C35CD-C9B3-4623-AA44-8EBA97ED7EF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{058C35CD-C9B3-4623-AA44-8EBA97ED7EF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{058C35CD-C9B3-4623-AA44-8EBA97ED7EF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{058C35CD-C9B3-4623-AA44-8EBA97ED7EF4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC701601-46CB-4429-B630-B28292F0B871}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC701601-46CB-4429-B630-B28292F0B871}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC701601-46CB-4429-B630-B28292F0B871}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC701601-46CB-4429-B630-B28292F0B871}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88C8AB4D-4480-4837-9F6B-906E67615C50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88C8AB4D-4480-4837-9F6B-906E67615C50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88C8AB4D-4480-4837-9F6B-906E67615C50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88C8AB4D-4480-4837-9F6B-906E67615C50}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{623F658A-5860-493A-9719-1F20BA43703A} = {649B1389-A8FD-4823-A1C5-44028B561D74}
+		{58F21E7E-7047-4183-8C78-BE611720CBF9} = {649B1389-A8FD-4823-A1C5-44028B561D74}
+		{426353A4-8897-4666-AF02-AF0B76EDAEF8} = {649B1389-A8FD-4823-A1C5-44028B561D74}
+		{058C35CD-C9B3-4623-AA44-8EBA97ED7EF4} = {649B1389-A8FD-4823-A1C5-44028B561D74}
+		{DC701601-46CB-4429-B630-B28292F0B871} = {1BD86276-BB92-4E15-8F29-04F0FEEDC122}
+		{88C8AB4D-4480-4837-9F6B-906E67615C50} = {1BD86276-BB92-4E15-8F29-04F0FEEDC122}
+	EndGlobalSection
+EndGlobal
