@@ -1,0 +1,24 @@
+# .NET
+backend/**/bin/
+backend/**/obj/
+*.user
+
+# EF Core tool manifest artifacts are fine to keep, but exclude local db tooling caches
+backend/.vs/
+
+# Node / React
+node_modules/
+frontend-booking/dist/
+frontend-admin/dist/
+frontend-booking/.vite/
+frontend-admin/.vite/
+
+# Env files
+.env
+.env.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
