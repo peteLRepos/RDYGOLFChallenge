@@ -22,3 +22,4 @@ frontend-admin/.vite/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+.claude/
