@@ -1,0 +1,42 @@
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  font-family: system-ui, sans-serif;
+  color: #1a2b1a;
+}
+
+.subtitle {
+  color: #4a5a4a;
+  margin-bottom: 1.5rem;
+}
+
+.error {
+  color: #b3261e;
+}
+
+.resource-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.resource-card {
+  border: 1px solid #d9e0d9;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+
+.resource-card h2 {
+  margin: 0.25rem 0;
+  font-size: 1.1rem;
+}
+
+.resource-type {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #2f6b3a;
+  font-weight: 600;
+}
