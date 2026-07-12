@@ -1,3 +1,4 @@
+using GolfClub.Application.Interfaces;
 using GolfClub.Domain.Entities;
 using GolfClub.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -6,10 +7,16 @@ namespace GolfClub.Infrastructure.Persistence;
 
 public static class DbSeeder
 {
-    public static async Task SeedAsync(GolfClubDbContext context)
+    public static async Task SeedAsync(GolfClubDbContext context, IPasswordHasher passwordHasher)
     {
         await context.Database.MigrateAsync();
 
+        await SeedResourcesAsync(context);
+        await SeedUsersAsync(context, passwordHasher);
+    }
+
+    private static async Task SeedResourcesAsync(GolfClubDbContext context)
+    {
         if (await context.Resources.AnyAsync())
             return;
 
@@ -25,6 +32,23 @@ public static class DbSeeder
         };
 
         await context.Resources.AddRangeAsync(resources);
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task SeedUsersAsync(GolfClubDbContext context, IPasswordHasher passwordHasher)
+    {
+        if (await context.Users.AnyAsync())
+            return;
+
+        var now = DateTime.Now;
+        var users = new List<User>
+        {
+            new("Admin", "admin@testAdmin.com", passwordHasher.Hash("Admin"), now, isAdmin: true),
+            new("Alice Smith", "alice@example.com", passwordHasher.Hash("Password123"), now),
+            new("Bob Jones", "bob@example.com", passwordHasher.Hash("Password123"), now),
+        };
+
+        await context.Users.AddRangeAsync(users);
         await context.SaveChangesAsync();
     }
 }
