@@ -8,6 +8,13 @@ public class Booking
     // How far ahead of the start time check-in opens.
     public const int CheckInWindowMinutes = 15;
 
+    // A booking can have at most this many named players...
+    public const int MaxPlayers = 4;
+    // ...and their handicaps can never sum past this, checked on every add, not just at creation.
+    public const int MaxCombinedHandicap = 120;
+
+    private readonly List<BookingPlayer> _players = new();
+
     public Guid Id { get; private set; }
     public Guid ResourceId { get; private set; }
     public Resource? Resource { get; private set; }
@@ -18,9 +25,12 @@ public class Booking
     public PaymentMethod PaymentMethod { get; private set; }
     public bool IsPaid { get; private set; }
     public BookingStatus Status { get; private set; }
-    public int PlayerCount { get; private set; }
     public decimal TotalPrice { get; private set; }
     public DateTime CreatedAt { get; private set; }
+
+    public IReadOnlyCollection<BookingPlayer> Players => _players.AsReadOnly();
+    public int PlayerCount => _players.Count;
+    public int CombinedHandicap => _players.Sum(p => p.Handicap);
 
     private Booking()
     {
@@ -31,6 +41,7 @@ public class Booking
     /// rather than read from the system clock here — keeps this constructor deterministic and testable
     /// without mocking. Start/End/now are all naive timestamps representing club-local time (see README).
     /// </param>
+    /// <param name="bookerHandicap">The booker's current handicap — they're the booking's first player.</param>
     /// <param name="pricePerPlayer">
     /// The resource's current price (0 if unpriced), supplied by the caller — Booking doesn't know
     /// about Resource beyond its id, matching the existing bookerId/resourceId pattern. TotalPrice is
@@ -43,14 +54,12 @@ public class Booking
         DateTime start,
         DateTime end,
         PaymentMethod paymentMethod,
-        int playerCount,
+        int bookerHandicap,
         decimal pricePerPlayer,
         DateTime now)
     {
         if (bookerId == Guid.Empty)
             throw new DomainException("Booker is required.");
-        if (playerCount < 1)
-            throw new DomainException("Player count must be at least 1.");
         ValidatePricePerPlayer(pricePerPlayer);
         ValidateTimeRange(start, end, now);
         // Real payment processing is out of scope for this project (see README) — the option is
@@ -68,9 +77,9 @@ public class Booking
         // settled in person later, so it starts unpaid until an admin marks it paid.
         IsPaid = paymentMethod == PaymentMethod.Card;
         Status = BookingStatus.Pending;
-        PlayerCount = playerCount;
-        TotalPrice = pricePerPlayer * playerCount;
         CreatedAt = now;
+        _players.Add(new BookingPlayer(bookerId, bookerHandicap, now));
+        TotalPrice = pricePerPlayer * PlayerCount;
     }
 
     public bool OverlapsWith(DateTime otherStart, DateTime otherEnd)
@@ -119,6 +128,27 @@ public class Booking
         ResourceId = resourceId;
         Start = start;
         End = end;
+        TotalPrice = pricePerPlayer * PlayerCount;
+    }
+
+    /// <summary>
+    /// Adds a named player — used both when the booker invites a specific guest and when another
+    /// user self-joins; the distinction between those two cases is an authorization decision made
+    /// by the caller (see BookingService.AddPlayerAsync), not different domain behavior.
+    /// </summary>
+    /// <param name="pricePerPlayer">The resource's current price (0 if unpriced) — see the constructor for why TotalPrice is recomputed and stored.</param>
+    public void AddPlayer(Guid userId, int handicap, decimal pricePerPlayer, DateTime now)
+    {
+        EnsurePending("joined");
+        ValidatePricePerPlayer(pricePerPlayer);
+        if (_players.Any(p => p.UserId == userId))
+            throw new DomainException("This user is already in the booking.");
+        if (_players.Count >= MaxPlayers)
+            throw new DomainException($"A booking can have at most {MaxPlayers} players.");
+        if (CombinedHandicap + handicap > MaxCombinedHandicap)
+            throw new DomainException($"Adding this player would push the combined handicap over {MaxCombinedHandicap}.");
+
+        _players.Add(new BookingPlayer(userId, handicap, now));
         TotalPrice = pricePerPlayer * PlayerCount;
     }
 

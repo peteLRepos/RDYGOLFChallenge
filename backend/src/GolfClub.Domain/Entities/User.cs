@@ -9,12 +9,18 @@ public class User
     public const int MaxNameLength = 200;
     public const int MaxEmailLength = 320;
 
+    // Golf handicap range: -10 is an elite "plus" handicap, 56 is the default assigned when a
+    // new member doesn't provide one (worst/beginner end, matches "not established yet").
+    public const int MinHandicap = -10;
+    public const int MaxHandicap = 56;
+
     public Guid Id { get; private set; }
     public string Name { get; private set; } = null!;
     public string Email { get; private set; } = null!;
     public string PasswordHash { get; private set; } = null!;
     public bool IsAdmin { get; private set; }
     public bool IsActive { get; private set; }
+    public int Handicap { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
     private User()
@@ -29,7 +35,7 @@ public class User
     /// Supplied by the caller (via IDateTimeProvider), not read from the system clock here — same
     /// testability rationale as Booking.
     /// </param>
-    public User(string name, string email, string passwordHash, DateTime now, bool isAdmin = false)
+    public User(string name, string email, string passwordHash, DateTime now, int? handicap = null, bool isAdmin = false)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new DomainException("Name is required.");
@@ -39,6 +45,8 @@ public class User
             throw new DomainException("Email is required.");
         if (string.IsNullOrWhiteSpace(passwordHash))
             throw new DomainException("Password is required.");
+        if (handicap is < MinHandicap or > MaxHandicap)
+            throw new DomainException($"Handicap must be between {MinHandicap} and {MaxHandicap}.");
 
         // Normalized so email comparisons (uniqueness, login lookup) are case-insensitive — no
         // mainstream email provider treats casing as significant, and callers shouldn't have to
@@ -54,6 +62,9 @@ public class User
         PasswordHash = passwordHash;
         IsAdmin = isAdmin;
         IsActive = true;
+        // No handicap established yet defaults to the worst/beginner end of the range, not the
+        // best — an unknown golfer shouldn't be treated as if they were scratch.
+        Handicap = handicap ?? MaxHandicap;
         CreatedAt = now;
     }
 

@@ -54,4 +54,18 @@ public class BookingsController : ControllerBase
         await _bookingService.CheckInAsync(id, _currentUser.UserId, _currentUser.IsAdmin, ct);
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/join")]
+    public async Task<IActionResult> Join(Guid id, CancellationToken ct)
+    {
+        var booking = await _bookingService.AddPlayerAsync(id, _currentUser.UserId, _currentUser.UserId, _currentUser.IsAdmin, ct);
+        return Ok(booking);
+    }
+
+    [HttpPost("{id:guid}/players")]
+    public async Task<IActionResult> AddPlayer(Guid id, [FromBody] AddPlayerRequest request, CancellationToken ct)
+    {
+        var booking = await _bookingService.AddPlayerAsync(id, request.UserId, _currentUser.UserId, _currentUser.IsAdmin, ct);
+        return Ok(booking);
+    }
 }

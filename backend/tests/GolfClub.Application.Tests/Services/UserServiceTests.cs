@@ -37,7 +37,7 @@ public class UserServiceTests
     [InlineData("short1")]
     public async Task RegisterAsync_WithPasswordShorterThanMinimumLength_ThrowsWithoutQueryingRepository(string password)
     {
-        var request = new RegisterUserRequest("Alice Smith", "alice@example.com", password);
+        var request = new RegisterUserRequest("Alice Smith", "alice@example.com", password, null);
 
         var act = () => _sut.RegisterAsync(request);
 
@@ -50,7 +50,7 @@ public class UserServiceTests
     {
         _users.Setup(u => u.GetByEmailAsync("alice@example.com", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User("Alice Smith", "alice@example.com", "hash", Now));
-        var request = new RegisterUserRequest("Alice Smith", "alice@example.com", "Password123");
+        var request = new RegisterUserRequest("Alice Smith", "alice@example.com", "Password123", null);
 
         var act = () => _sut.RegisterAsync(request);
 
@@ -64,7 +64,7 @@ public class UserServiceTests
         // check must normalize the incoming request the same way before querying.
         _users.Setup(u => u.GetByEmailAsync("alice@example.com", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User("Alice Smith", "alice@example.com", "hash", Now));
-        var request = new RegisterUserRequest("Alice Duplicate", "  Alice@Example.com  ", "Password123");
+        var request = new RegisterUserRequest("Alice Duplicate", "  Alice@Example.com  ", "Password123", null);
 
         var act = () => _sut.RegisterAsync(request);
 
@@ -78,7 +78,7 @@ public class UserServiceTests
             .ReturnsAsync((User?)null);
         _passwordHasher.Setup(p => p.Hash("Password123")).Returns("hashed-password");
         _tokenGenerator.Setup(t => t.GenerateToken(It.IsAny<User>())).Returns("fake-jwt-token");
-        var request = new RegisterUserRequest("Alice Smith", "alice@example.com", "Password123");
+        var request = new RegisterUserRequest("Alice Smith", "alice@example.com", "Password123", null);
 
         var result = await _sut.RegisterAsync(request);
 
@@ -103,7 +103,7 @@ public class UserServiceTests
         _passwordHasher.Setup(p => p.Hash("Password123")).Returns("hashed-password");
         _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ConflictException("A record with a conflicting unique value already exists."));
-        var request = new RegisterUserRequest("Alice Smith", "alice@example.com", "Password123");
+        var request = new RegisterUserRequest("Alice Smith", "alice@example.com", "Password123", null);
 
         var act = () => _sut.RegisterAsync(request);
 

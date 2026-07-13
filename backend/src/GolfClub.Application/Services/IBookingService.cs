@@ -24,4 +24,11 @@ public interface IBookingService
     /// exposed on the public booking flow, only via the admin controller.
     /// </summary>
     Task<BookingDto> MoveAsync(Guid bookingId, MoveBookingRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Adds a named player — <paramref name="targetUserId"/> is who's being added,
+    /// <paramref name="requestingUserId"/>/<paramref name="isAdmin"/> is who's asking. Allowed if
+    /// the requester is the booker, an admin, or adding themselves (self-join).
+    /// </summary>
+    Task<BookingDto> AddPlayerAsync(Guid bookingId, Guid targetUserId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default);
 }

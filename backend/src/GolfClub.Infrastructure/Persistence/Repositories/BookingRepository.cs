@@ -18,6 +18,7 @@ public class BookingRepository : IBookingRepository
         _context.Bookings
             .Include(b => b.Resource)
             .Include(b => b.Booker)
+            .Include(b => b.Players).ThenInclude(p => p.User)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
 
     public async Task<List<Booking>> GetByResourceAndDateAsync(Guid resourceId, DateOnly date, CancellationToken ct = default)
@@ -40,6 +41,7 @@ public class BookingRepository : IBookingRepository
             .AsNoTracking()
             .Include(b => b.Resource)
             .Include(b => b.Booker)
+            .Include(b => b.Players).ThenInclude(p => p.User)
             .OrderByDescending(b => b.Start)
             .ToListAsync(ct);
 
@@ -48,6 +50,7 @@ public class BookingRepository : IBookingRepository
             .AsNoTracking()
             .Include(b => b.Resource)
             .Include(b => b.Booker)
+            .Include(b => b.Players).ThenInclude(p => p.User)
             .Where(b => b.BookerId == bookerId)
             .OrderByDescending(b => b.Start)
             .ToListAsync(ct);

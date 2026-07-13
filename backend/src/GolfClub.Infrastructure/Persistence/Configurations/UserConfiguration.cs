@@ -29,6 +29,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.IsActive)
             .IsRequired();
 
+        builder.Property(u => u.Handicap)
+            .IsRequired();
+
         builder.Property(u => u.CreatedAt)
             .HasColumnType("timestamp without time zone")
             .IsRequired();

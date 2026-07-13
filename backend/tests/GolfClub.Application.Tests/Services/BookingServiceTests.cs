@@ -19,6 +19,7 @@ public class BookingServiceTests
 
     private readonly Mock<IBookingRepository> _bookings = new();
     private readonly Mock<IResourceRepository> _resources = new();
+    private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<IDateTimeProvider> _dateTimeProvider = new();
     private readonly BookingService _sut;
@@ -26,7 +27,10 @@ public class BookingServiceTests
     public BookingServiceTests()
     {
         _dateTimeProvider.Setup(p => p.Now).Returns(Now);
-        _sut = new BookingService(_bookings.Object, _resources.Object, _unitOfWork.Object, _dateTimeProvider.Object);
+        // Default booker for CreateAsync's lookup — individual tests override with a specific
+        // user/handicap only when that matters to what they're asserting.
+        _users.Setup(u => u.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(CreateUser());
+        _sut = new BookingService(_bookings.Object, _resources.Object, _users.Object, _unitOfWork.Object, _dateTimeProvider.Object);
     }
 
     private static Resource CreateResource(bool isActive = true, decimal? pricePerPlayer = null)
@@ -36,13 +40,16 @@ public class BookingServiceTests
         return resource;
     }
 
+    private static User CreateUser(int handicap = 20) =>
+        new("Player", "player@example.com", "hash", Now, handicap);
+
     private static Booking CreateBooking(
         Guid? resourceId = null,
         Guid? bookerId = null,
         DateTime? start = null,
         DateTime? end = null,
         PaymentMethod paymentMethod = PaymentMethod.Cash,
-        int playerCount = 1,
+        int bookerHandicap = 20,
         decimal pricePerPlayer = 0m) =>
         new(
             resourceId ?? Guid.NewGuid(),
@@ -50,7 +57,7 @@ public class BookingServiceTests
             start ?? Now.AddHours(1),
             end ?? Now.AddHours(2),
             paymentMethod,
-            playerCount,
+            bookerHandicap,
             pricePerPlayer,
             Now);
 
@@ -70,7 +77,7 @@ public class BookingServiceTests
     {
         var resourceId = Guid.NewGuid();
         _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync((Resource?)null);
-        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 1);
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -82,7 +89,7 @@ public class BookingServiceTests
     {
         var resource = CreateResource(isActive: false);
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 1);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -95,7 +102,7 @@ public class BookingServiceTests
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
         var day = Now.Date;
-        var request = new CreateBookingRequest(Guid.NewGuid(), day.AddHours(5), day.AddHours(6), PaymentMethod.Cash, 1);
+        var request = new CreateBookingRequest(Guid.NewGuid(), day.AddHours(5), day.AddHours(6), PaymentMethod.Cash);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -109,7 +116,7 @@ public class BookingServiceTests
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 1);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -123,7 +130,7 @@ public class BookingServiceTests
         // regardless of the real wall-clock time when the test suite runs.
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(-1), Now, PaymentMethod.Cash, 1);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(-1), Now, PaymentMethod.Cash);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -135,7 +142,7 @@ public class BookingServiceTests
     {
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.SerialTicket, 1);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.SerialTicket);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -153,7 +160,7 @@ public class BookingServiceTests
         StubCreateAndReload();
         var start = Now.AddHours(1);
         var end = Now.AddHours(2);
-        var request = new CreateBookingRequest(resourceId, start, end, PaymentMethod.Cash, 1);
+        var request = new CreateBookingRequest(resourceId, start, end, PaymentMethod.Cash);
 
         var result = await _sut.CreateAsync(request, BookerId);
 
@@ -177,7 +184,7 @@ public class BookingServiceTests
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         StubCreateAndReload();
-        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Card, 1);
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Card);
 
         var result = await _sut.CreateAsync(request, BookerId);
 
@@ -185,7 +192,7 @@ public class BookingServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_WithPricedResource_ComputesTotalPriceFromPlayerCount()
+    public async Task CreateAsync_WithPricedResource_ComputesTotalPriceForTheBooker()
     {
         var resourceId = Guid.NewGuid();
         var resource = CreateResource(pricePerPlayer: 15m);
@@ -193,12 +200,12 @@ public class BookingServiceTests
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         StubCreateAndReload();
-        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 3);
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
 
         var result = await _sut.CreateAsync(request, BookerId);
 
-        result.PlayerCount.Should().Be(3);
-        result.TotalPrice.Should().Be(45m);
+        result.PlayerCount.Should().Be(1);
+        result.TotalPrice.Should().Be(15m);
     }
 
     [Fact]
@@ -210,7 +217,7 @@ public class BookingServiceTests
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         StubCreateAndReload();
-        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 4);
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
 
         var result = await _sut.CreateAsync(request, BookerId);
 
@@ -445,8 +452,8 @@ public class BookingServiceTests
     {
         var newResourceId = Guid.NewGuid();
         var resource = CreateResource(pricePerPlayer: 22m);
-        var booking = CreateBooking(playerCount: 2, pricePerPlayer: 10m);
-        booking.TotalPrice.Should().Be(20m);
+        var booking = CreateBooking(pricePerPlayer: 10m);
+        booking.TotalPrice.Should().Be(10m);
         _bookings.Setup(b => b.GetByIdAsync(booking.Id, It.IsAny<CancellationToken>())).ReturnsAsync(booking);
         _resources.Setup(r => r.GetByIdAsync(newResourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
         _bookings.Setup(b => b.HasOverlapAsync(newResourceId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), booking.Id, It.IsAny<CancellationToken>()))
@@ -455,7 +462,7 @@ public class BookingServiceTests
 
         var result = await _sut.MoveAsync(booking.Id, request);
 
-        result.TotalPrice.Should().Be(44m);
+        result.TotalPrice.Should().Be(22m);
     }
 
     [Fact]

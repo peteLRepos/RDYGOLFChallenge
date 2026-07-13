@@ -15,7 +15,7 @@ public class BookingTests
         DateTime? start = null,
         DateTime? end = null,
         PaymentMethod paymentMethod = PaymentMethod.Cash,
-        int playerCount = 1,
+        int bookerHandicap = 20,
         decimal pricePerPlayer = 0m,
         DateTime? now = null) =>
         new(
@@ -24,7 +24,7 @@ public class BookingTests
             start ?? Now.AddHours(1),
             end ?? Now.AddHours(2),
             paymentMethod,
-            playerCount,
+            bookerHandicap,
             pricePerPlayer,
             now ?? Now);
 
@@ -70,16 +70,6 @@ public class BookingTests
         act.Should().Throw<DomainException>().WithMessage("*Booker is required*");
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Constructor_WithPlayerCountLessThanOne_Throws(int playerCount)
-    {
-        var act = () => CreateBooking(playerCount: playerCount);
-
-        act.Should().Throw<DomainException>().WithMessage("*Player count*");
-    }
-
     [Fact]
     public void Constructor_WithNegativePricePerPlayer_Throws()
     {
@@ -89,18 +79,20 @@ public class BookingTests
     }
 
     [Fact]
-    public void Constructor_ComputesTotalPriceFromPricePerPlayerAndPlayerCount()
+    public void Constructor_AddsTheBookerAsTheFirstPlayerAndComputesTotalPrice()
     {
-        var booking = CreateBooking(playerCount: 3, pricePerPlayer: 15m);
+        var booking = CreateBooking(bookerHandicap: 12, pricePerPlayer: 15m);
 
-        booking.PlayerCount.Should().Be(3);
-        booking.TotalPrice.Should().Be(45m);
+        booking.PlayerCount.Should().Be(1);
+        booking.CombinedHandicap.Should().Be(12);
+        booking.Players.Should().ContainSingle(p => p.UserId == BookerId && p.Handicap == 12);
+        booking.TotalPrice.Should().Be(15m);
     }
 
     [Fact]
     public void Constructor_WithUnpricedResource_TotalPriceIsZero()
     {
-        var booking = CreateBooking(playerCount: 4, pricePerPlayer: 0m);
+        var booking = CreateBooking(pricePerPlayer: 0m);
 
         booking.TotalPrice.Should().Be(0m);
     }
@@ -310,12 +302,12 @@ public class BookingTests
     [Fact]
     public void Reschedule_RecomputesTotalPriceAgainstTheTargetResource()
     {
-        var booking = CreateBooking(playerCount: 2, pricePerPlayer: 10m);
-        booking.TotalPrice.Should().Be(20m);
+        var booking = CreateBooking(pricePerPlayer: 10m);
+        booking.TotalPrice.Should().Be(10m);
 
         booking.Reschedule(Guid.NewGuid(), Now.AddHours(3), Now.AddHours(4), 22m, Now);
 
-        booking.TotalPrice.Should().Be(44m);
+        booking.TotalPrice.Should().Be(22m);
     }
 
     [Fact]
