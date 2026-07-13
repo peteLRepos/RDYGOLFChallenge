@@ -30,6 +30,11 @@ public class ResourceConfiguration : IEntityTypeConfiguration<Resource>
         builder.Property(r => r.ClosingTime)
             .IsRequired();
 
+        // Nullable: most resource types aren't priced yet (see README assumptions) — null means
+        // "no price set", distinct from a real (rejected) zero price.
+        builder.Property(r => r.PricePerPlayer)
+            .HasColumnType("decimal(10,2)");
+
         builder.Property(r => r.IsActive)
             .IsRequired();
     }

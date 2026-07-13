@@ -15,6 +15,8 @@ public class BookingTests
         DateTime? start = null,
         DateTime? end = null,
         PaymentMethod paymentMethod = PaymentMethod.Cash,
+        int playerCount = 1,
+        decimal pricePerPlayer = 0m,
         DateTime? now = null) =>
         new(
             ResourceId,
@@ -22,6 +24,8 @@ public class BookingTests
             start ?? Now.AddHours(1),
             end ?? Now.AddHours(2),
             paymentMethod,
+            playerCount,
+            pricePerPlayer,
             now ?? Now);
 
     [Fact]
@@ -61,9 +65,44 @@ public class BookingTests
     [Fact]
     public void Constructor_WithEmptyBookerId_Throws()
     {
-        var act = () => new Booking(ResourceId, Guid.Empty, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, Now);
+        var act = () => new Booking(ResourceId, Guid.Empty, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 1, 0m, Now);
 
         act.Should().Throw<DomainException>().WithMessage("*Booker is required*");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Constructor_WithPlayerCountLessThanOne_Throws(int playerCount)
+    {
+        var act = () => CreateBooking(playerCount: playerCount);
+
+        act.Should().Throw<DomainException>().WithMessage("*Player count*");
+    }
+
+    [Fact]
+    public void Constructor_WithNegativePricePerPlayer_Throws()
+    {
+        var act = () => CreateBooking(pricePerPlayer: -1m);
+
+        act.Should().Throw<DomainException>().WithMessage("*cannot be negative*");
+    }
+
+    [Fact]
+    public void Constructor_ComputesTotalPriceFromPricePerPlayerAndPlayerCount()
+    {
+        var booking = CreateBooking(playerCount: 3, pricePerPlayer: 15m);
+
+        booking.PlayerCount.Should().Be(3);
+        booking.TotalPrice.Should().Be(45m);
+    }
+
+    [Fact]
+    public void Constructor_WithUnpricedResource_TotalPriceIsZero()
+    {
+        var booking = CreateBooking(playerCount: 4, pricePerPlayer: 0m);
+
+        booking.TotalPrice.Should().Be(0m);
     }
 
     [Fact]
@@ -261,11 +300,32 @@ public class BookingTests
         var newStart = Now.AddHours(3);
         var newEnd = Now.AddHours(4);
 
-        booking.Reschedule(newResourceId, newStart, newEnd, Now);
+        booking.Reschedule(newResourceId, newStart, newEnd, 0m, Now);
 
         booking.ResourceId.Should().Be(newResourceId);
         booking.Start.Should().Be(newStart);
         booking.End.Should().Be(newEnd);
+    }
+
+    [Fact]
+    public void Reschedule_RecomputesTotalPriceAgainstTheTargetResource()
+    {
+        var booking = CreateBooking(playerCount: 2, pricePerPlayer: 10m);
+        booking.TotalPrice.Should().Be(20m);
+
+        booking.Reschedule(Guid.NewGuid(), Now.AddHours(3), Now.AddHours(4), 22m, Now);
+
+        booking.TotalPrice.Should().Be(44m);
+    }
+
+    [Fact]
+    public void Reschedule_WithNegativePricePerPlayer_Throws()
+    {
+        var booking = CreateBooking();
+
+        var act = () => booking.Reschedule(Guid.NewGuid(), Now.AddHours(3), Now.AddHours(4), -1m, Now);
+
+        act.Should().Throw<DomainException>().WithMessage("*cannot be negative*");
     }
 
     [Fact]
@@ -274,7 +334,7 @@ public class BookingTests
         var booking = CreateBooking(paymentMethod: PaymentMethod.Cash);
         booking.Cancel();
 
-        var act = () => booking.Reschedule(ResourceId, Now.AddHours(3), Now.AddHours(4), Now);
+        var act = () => booking.Reschedule(ResourceId, Now.AddHours(3), Now.AddHours(4), 0m, Now);
 
         act.Should().Throw<DomainException>().WithMessage("*Only a pending booking*");
     }
@@ -286,7 +346,7 @@ public class BookingTests
         var booking = CreateBooking(start, start.AddHours(1));
         booking.CheckIn(start.AddMinutes(-10));
 
-        var act = () => booking.Reschedule(ResourceId, Now.AddHours(5), Now.AddHours(6), Now);
+        var act = () => booking.Reschedule(ResourceId, Now.AddHours(5), Now.AddHours(6), 0m, Now);
 
         act.Should().Throw<DomainException>().WithMessage("*Only a pending booking*");
     }
@@ -296,7 +356,7 @@ public class BookingTests
     {
         var booking = CreateBooking();
 
-        var act = () => booking.Reschedule(ResourceId, Now.AddHours(4), Now.AddHours(3), Now);
+        var act = () => booking.Reschedule(ResourceId, Now.AddHours(4), Now.AddHours(3), 0m, Now);
 
         act.Should().Throw<DomainException>().WithMessage("*before its end*");
     }
@@ -306,7 +366,7 @@ public class BookingTests
     {
         var booking = CreateBooking();
 
-        var act = () => booking.Reschedule(ResourceId, Now.AddHours(-2), Now.AddHours(-1), Now);
+        var act = () => booking.Reschedule(ResourceId, Now.AddHours(-2), Now.AddHours(-1), 0m, Now);
 
         act.Should().Throw<DomainException>().WithMessage("*in the past*");
     }

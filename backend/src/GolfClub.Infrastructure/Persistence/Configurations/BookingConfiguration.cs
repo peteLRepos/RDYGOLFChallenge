@@ -20,6 +20,16 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(b => b.IsPaid)
             .IsRequired();
 
+        builder.Property(b => b.PlayerCount)
+            .IsRequired();
+
+        // Snapshotted at booking time (see Booking's constructor doc) rather than derived live
+        // from Resource.PricePerPlayer, so a later price change doesn't alter what an existing
+        // booking was charged.
+        builder.Property(b => b.TotalPrice)
+            .HasColumnType("decimal(10,2)")
+            .IsRequired();
+
         builder.Property(b => b.Status)
             .HasConversion<string>()
             .HasMaxLength(20)
