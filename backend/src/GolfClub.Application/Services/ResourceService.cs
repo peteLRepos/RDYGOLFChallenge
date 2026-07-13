@@ -36,7 +36,8 @@ public class ResourceService : IResourceService
             request.Type,
             request.SlotDurationMinutes,
             request.OpeningTime,
-            request.ClosingTime);
+            request.ClosingTime,
+            request.PricePerPlayer);
 
         await _resources.AddAsync(resource, ct);
         await _unitOfWork.SaveChangesAsync(ct);
@@ -49,7 +50,7 @@ public class ResourceService : IResourceService
         var resource = await _resources.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"Resource '{id}' was not found.");
 
-        resource.Update(request.Name, request.SlotDurationMinutes, request.OpeningTime, request.ClosingTime);
+        resource.Update(request.Name, request.SlotDurationMinutes, request.OpeningTime, request.ClosingTime, request.PricePerPlayer);
         await _unitOfWork.SaveChangesAsync(ct);
 
         return ToDto(resource);
@@ -75,5 +76,6 @@ public class ResourceService : IResourceService
         resource.SlotDurationMinutes,
         resource.OpeningTime,
         resource.ClosingTime,
+        resource.PricePerPlayer,
         resource.IsActive);
 }

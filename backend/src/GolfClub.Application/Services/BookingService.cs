@@ -71,7 +71,7 @@ public class BookingService : IBookingService
 
     public async Task<BookingDto> CreateAsync(CreateBookingRequest request, Guid bookerId, CancellationToken ct = default)
     {
-        await ValidateSlotAsync(request.ResourceId, request.Start, request.End, excludeBookingId: null, ct);
+        var resource = await ValidateSlotAsync(request.ResourceId, request.Start, request.End, excludeBookingId: null, ct);
 
         var booking = new Booking(
             request.ResourceId,
@@ -79,6 +79,8 @@ public class BookingService : IBookingService
             request.Start,
             request.End,
             request.PaymentMethod,
+            request.PlayerCount,
+            resource.PricePerPlayer ?? 0m,
             _dateTimeProvider.Now);
         await _bookings.AddAsync(booking, ct);
         await _unitOfWork.SaveChangesAsync(ct);
@@ -123,8 +125,8 @@ public class BookingService : IBookingService
         var booking = await _bookings.GetByIdAsync(bookingId, ct)
             ?? throw new NotFoundException($"Booking '{bookingId}' was not found.");
 
-        await ValidateSlotAsync(request.ResourceId, request.Start, request.End, excludeBookingId: bookingId, ct);
-        booking.Reschedule(request.ResourceId, request.Start, request.End, _dateTimeProvider.Now);
+        var resource = await ValidateSlotAsync(request.ResourceId, request.Start, request.End, excludeBookingId: bookingId, ct);
+        booking.Reschedule(request.ResourceId, request.Start, request.End, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
         await _unitOfWork.SaveChangesAsync(ct);
 
         // Re-fetch: Reschedule may have changed ResourceId, but the already-loaded Resource
@@ -132,11 +134,10 @@ public class BookingService : IBookingService
         return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
     }
 
-    // Callers (CreateAsync/MoveAsync) re-fetch the booking afterward for its DTO, which re-reads
-    // this same Resource row via the join on Booking.Resource — a second round-trip we accept for
-    // low request volume rather than threading the Resource instance back out of validation and
-    // building the DTO by hand (Booker still needs a separate fetch either way, so the win is small).
-    private async Task ValidateSlotAsync(Guid resourceId, DateTime start, DateTime end, Guid? excludeBookingId, CancellationToken ct)
+    // Returns the validated Resource so callers that need its PricePerPlayer (Create/Move) don't
+    // have to re-fetch it — they already both re-fetch the Booking afterward for its DTO anyway
+    // (see those methods' comments), so this at least avoids a second, separate Resources lookup.
+    private async Task<Resource> ValidateSlotAsync(Guid resourceId, DateTime start, DateTime end, Guid? excludeBookingId, CancellationToken ct)
     {
         var resource = await _resources.GetByIdAsync(resourceId, ct)
             ?? throw new NotFoundException($"Resource '{resourceId}' was not found.");
@@ -150,6 +151,8 @@ public class BookingService : IBookingService
         var hasOverlap = await _bookings.HasOverlapAsync(resourceId, start, end, excludeBookingId, ct);
         if (hasOverlap)
             throw new DomainException("This time slot is already booked.");
+
+        return resource;
     }
 
     private static void EnsureOwnerOrAdmin(Booking booking, Guid requestingUserId, bool isAdmin)
@@ -170,5 +173,7 @@ public class BookingService : IBookingService
         booking.PaymentMethod,
         booking.IsPaid,
         booking.Status,
+        booking.PlayerCount,
+        booking.TotalPrice,
         booking.CreatedAt);
 }

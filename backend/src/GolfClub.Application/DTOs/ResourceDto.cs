@@ -9,6 +9,7 @@ public record ResourceDto(
     int SlotDurationMinutes,
     TimeOnly OpeningTime,
     TimeOnly ClosingTime,
+    decimal? PricePerPlayer,
     bool IsActive);
 
 public record CreateResourceRequest(
@@ -16,10 +17,12 @@ public record CreateResourceRequest(
     ResourceType Type,
     int SlotDurationMinutes,
     TimeOnly OpeningTime,
-    TimeOnly ClosingTime);
+    TimeOnly ClosingTime,
+    decimal? PricePerPlayer);
 
 public record UpdateResourceRequest(
     string Name,
     int SlotDurationMinutes,
     TimeOnly OpeningTime,
-    TimeOnly ClosingTime);
+    TimeOnly ClosingTime,
+    decimal? PricePerPlayer);
