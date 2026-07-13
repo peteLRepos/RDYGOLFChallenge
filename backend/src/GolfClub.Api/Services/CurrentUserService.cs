@@ -1,4 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using GolfClub.Application.Interfaces;
 
@@ -17,13 +16,14 @@ public class CurrentUserService : ICurrentUserService
     {
         get
         {
-            // .NET 8's JwtBearerHandler uses JsonWebTokenHandler by default, which — unlike the
-            // legacy JwtSecurityTokenHandler — does not remap short JWT claim names to long
-            // ClaimTypes URIs, so the "sub" claim JwtTokenGenerator writes stays literally "sub"
-            // on the resulting ClaimsPrincipal (verified against a real issued token).
-            var claim = User.FindFirst(JwtRegisteredClaimNames.Sub)
+            // The "sub" claim JwtTokenGenerator writes gets remapped to the long ClaimTypes URI by
+            // the JwtBearer pipeline's default inbound claim mapping — confirmed against a real
+            // issued token through the actual running API (a synthetic JsonWebTokenHandler-only
+            // test doesn't reproduce this, since the remapping happens elsewhere in the ASP.NET
+            // Core hosting pipeline, not in token validation itself).
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)
                 ?? throw new InvalidOperationException(
-                    $"No '{JwtRegisteredClaimNames.Sub}' claim on the current user — this property " +
+                    $"No '{ClaimTypes.NameIdentifier}' claim on the current user — this property " +
                     "should only be accessed behind [Authorize].");
 
             return Guid.Parse(claim.Value);
