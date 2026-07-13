@@ -31,4 +31,11 @@ public class UsersController : ControllerBase
         var results = await _userService.SearchAsync(q, ct);
         return Ok(results);
     }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
+    {
+        var result = await _userService.ForgotPasswordAsync(request, ct);
+        return Ok(result);
+    }
 }

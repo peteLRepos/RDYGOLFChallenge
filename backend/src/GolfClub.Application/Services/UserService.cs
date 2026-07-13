@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using GolfClub.Application.DTOs;
 using GolfClub.Application.Exceptions;
 using GolfClub.Application.Interfaces;
@@ -10,6 +11,11 @@ public class UserService : IUserService
 {
     private const int MinimumSearchQueryLength = 2;
     private const int MinimumPasswordLength = 8;
+    private const int GeneratedPasswordLength = 12;
+
+    // Excludes visually ambiguous characters (0/O, 1/I/l) since this is read off a screen and
+    // retyped by hand — no email step to copy-paste it from (see README).
+    private const string GeneratedPasswordAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
 
     // Arbitrary fixed identifier for the "at least one active admin must remain" invariant —
     // see EnsureNotLastActiveAdminAsync. Any value works as long as it's unique within this
@@ -68,6 +74,28 @@ public class UserService : IUserService
 
         var token = _tokenGenerator.GenerateToken(user);
         return new AuthResponseDto(token, UserDto.FromEntity(user));
+    }
+
+    public async Task<ForgotPasswordResponseDto> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct = default)
+    {
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var user = await _users.GetByEmailAsync(normalizedEmail, ct)
+            ?? throw new NotFoundException("No account was found with this email.");
+
+        var newPassword = GenerateRandomPassword();
+        user.ResetPassword(_passwordHasher.Hash(newPassword));
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return new ForgotPasswordResponseDto(newPassword);
+    }
+
+    private static string GenerateRandomPassword()
+    {
+        var chars = new char[GeneratedPasswordLength];
+        for (var i = 0; i < chars.Length; i++)
+            chars[i] = GeneratedPasswordAlphabet[RandomNumberGenerator.GetInt32(GeneratedPasswordAlphabet.Length)];
+
+        return new string(chars);
     }
 
     public async Task<List<UserSearchResultDto>> SearchAsync(string query, CancellationToken ct = default)
