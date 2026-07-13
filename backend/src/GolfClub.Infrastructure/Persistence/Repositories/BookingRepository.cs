@@ -15,7 +15,10 @@ public class BookingRepository : IBookingRepository
     }
 
     public Task<Booking?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        _context.Bookings.Include(b => b.Resource).FirstOrDefaultAsync(b => b.Id == id, ct);
+        _context.Bookings
+            .Include(b => b.Resource)
+            .Include(b => b.Booker)
+            .FirstOrDefaultAsync(b => b.Id == id, ct);
 
     public async Task<List<Booking>> GetByResourceAndDateAsync(Guid resourceId, DateOnly date, CancellationToken ct = default)
     {
@@ -25,7 +28,7 @@ public class BookingRepository : IBookingRepository
         return await _context.Bookings
             .AsNoTracking()
             .Where(b => b.ResourceId == resourceId
-                        && b.Status == BookingStatus.Confirmed
+                        && b.Status != BookingStatus.Cancelled
                         && b.Start < dayEnd
                         && b.End > dayStart)
             .OrderBy(b => b.Start)
@@ -36,13 +39,14 @@ public class BookingRepository : IBookingRepository
         await _context.Bookings
             .AsNoTracking()
             .Include(b => b.Resource)
+            .Include(b => b.Booker)
             .OrderByDescending(b => b.Start)
             .ToListAsync(ct);
 
     public async Task<bool> HasOverlapAsync(Guid resourceId, DateTime start, DateTime end, CancellationToken ct = default) =>
         await _context.Bookings.AnyAsync(
             b => b.ResourceId == resourceId
-                 && b.Status == BookingStatus.Confirmed
+                 && b.Status != BookingStatus.Cancelled
                  && b.Start < end
                  && start < b.End,
             ct);
