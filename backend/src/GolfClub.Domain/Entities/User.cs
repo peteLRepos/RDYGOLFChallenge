@@ -75,4 +75,13 @@ public class User
     public void PromoteToAdmin() => IsAdmin = true;
 
     public void DemoteFromAdmin() => IsAdmin = false;
+
+    /// <param name="newPasswordHash">Already-hashed, same contract as the constructor's passwordHash.</param>
+    public void ResetPassword(string newPasswordHash)
+    {
+        if (string.IsNullOrWhiteSpace(newPasswordHash))
+            throw new DomainException("Password is required.");
+
+        PasswordHash = newPasswordHash;
+    }
 }

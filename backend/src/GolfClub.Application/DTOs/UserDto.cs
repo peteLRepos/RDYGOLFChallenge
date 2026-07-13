@@ -32,3 +32,11 @@ public record RegisterUserRequest(string Name, string Email, string Password, in
 public record LoginRequest(string Email, string Password);
 
 public record AuthResponseDto(string Token, UserDto User);
+
+/// <summary>
+/// No email step (explicitly out of scope, see README) — the caller identifies themselves by
+/// email and is shown the new password directly in the response.
+/// </summary>
+public record ForgotPasswordRequest(string Email);
+
+public record ForgotPasswordResponseDto(string NewPassword);
