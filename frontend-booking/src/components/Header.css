@@ -31,6 +31,8 @@
   border-radius: var(--radius-sm);
   padding: 0.4rem 0.9rem;
   font-size: 0.9rem;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .header-button-primary {

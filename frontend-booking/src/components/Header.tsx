@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { AuthModals, type AuthMode } from './AuthModals';
 import './Header.css';
@@ -13,6 +14,9 @@ export function Header({ title }: { title: string }) {
       <div className="site-header-actions">
         {isAuthenticated ? (
           <>
+            <Link to="/my-bookings" className="header-button">
+              My Bookings
+            </Link>
             <span className="site-user">{user!.name}</span>
             <button type="button" className="header-button" onClick={logout}>
               Log out
