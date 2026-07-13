@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using GolfClub.Api.Middleware;
+using GolfClub.Api.Services;
 using GolfClub.Application;
 using GolfClub.Application.Interfaces;
 using GolfClub.Infrastructure;
@@ -19,6 +20,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 var jwtSecret = builder.Configuration["Jwt:Secret"]
     ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
