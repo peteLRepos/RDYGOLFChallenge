@@ -14,13 +14,16 @@ public record BookingDto(
     PaymentMethod PaymentMethod,
     bool IsPaid,
     BookingStatus Status,
+    int PlayerCount,
+    decimal TotalPrice,
     DateTime CreatedAt);
 
 public record CreateBookingRequest(
     Guid ResourceId,
     DateTime Start,
     DateTime End,
-    PaymentMethod PaymentMethod);
+    PaymentMethod PaymentMethod,
+    int PlayerCount);
 
 public record MoveBookingRequest(
     Guid ResourceId,

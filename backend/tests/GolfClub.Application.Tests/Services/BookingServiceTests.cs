@@ -29,9 +29,9 @@ public class BookingServiceTests
         _sut = new BookingService(_bookings.Object, _resources.Object, _unitOfWork.Object, _dateTimeProvider.Object);
     }
 
-    private static Resource CreateResource(bool isActive = true)
+    private static Resource CreateResource(bool isActive = true, decimal? pricePerPlayer = null)
     {
-        var resource = new Resource("Simulator Bay", ResourceType.Simulator, 60, new TimeOnly(7, 0), new TimeOnly(21, 0));
+        var resource = new Resource("Simulator Bay", ResourceType.Simulator, 60, new TimeOnly(7, 0), new TimeOnly(21, 0), pricePerPlayer);
         if (!isActive) resource.Deactivate();
         return resource;
     }
@@ -41,21 +41,36 @@ public class BookingServiceTests
         Guid? bookerId = null,
         DateTime? start = null,
         DateTime? end = null,
-        PaymentMethod paymentMethod = PaymentMethod.Cash) =>
+        PaymentMethod paymentMethod = PaymentMethod.Cash,
+        int playerCount = 1,
+        decimal pricePerPlayer = 0m) =>
         new(
             resourceId ?? Guid.NewGuid(),
             bookerId ?? BookerId,
             start ?? Now.AddHours(1),
             end ?? Now.AddHours(2),
             paymentMethod,
+            playerCount,
+            pricePerPlayer,
             Now);
+
+    /// <summary>Stubs the AddAsync/GetByIdAsync round trip CreateAsync does to re-fetch its DTO.</summary>
+    private void StubCreateAndReload()
+    {
+        Booking? saved = null;
+        _bookings.Setup(b => b.AddAsync(It.IsAny<Booking>(), It.IsAny<CancellationToken>()))
+            .Callback<Booking, CancellationToken>((b, _) => saved = b)
+            .Returns(Task.CompletedTask);
+        _bookings.Setup(b => b.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => saved);
+    }
 
     [Fact]
     public async Task CreateAsync_WhenResourceDoesNotExist_ThrowsNotFound()
     {
         var resourceId = Guid.NewGuid();
         _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync((Resource?)null);
-        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 1);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -67,7 +82,7 @@ public class BookingServiceTests
     {
         var resource = CreateResource(isActive: false);
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 1);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -80,7 +95,7 @@ public class BookingServiceTests
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
         var day = Now.Date;
-        var request = new CreateBookingRequest(Guid.NewGuid(), day.AddHours(5), day.AddHours(6), PaymentMethod.Cash);
+        var request = new CreateBookingRequest(Guid.NewGuid(), day.AddHours(5), day.AddHours(6), PaymentMethod.Cash, 1);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -94,7 +109,7 @@ public class BookingServiceTests
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 1);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -108,7 +123,7 @@ public class BookingServiceTests
         // regardless of the real wall-clock time when the test suite runs.
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(-1), Now, PaymentMethod.Cash);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(-1), Now, PaymentMethod.Cash, 1);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -120,7 +135,7 @@ public class BookingServiceTests
     {
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.SerialTicket);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.SerialTicket, 1);
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -135,15 +150,10 @@ public class BookingServiceTests
         _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
-        Booking? saved = null;
-        _bookings.Setup(b => b.AddAsync(It.IsAny<Booking>(), It.IsAny<CancellationToken>()))
-            .Callback<Booking, CancellationToken>((b, _) => saved = b)
-            .Returns(Task.CompletedTask);
-        _bookings.Setup(b => b.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => saved);
+        StubCreateAndReload();
         var start = Now.AddHours(1);
         var end = Now.AddHours(2);
-        var request = new CreateBookingRequest(resourceId, start, end, PaymentMethod.Cash);
+        var request = new CreateBookingRequest(resourceId, start, end, PaymentMethod.Cash, 1);
 
         var result = await _sut.CreateAsync(request, BookerId);
 
@@ -166,17 +176,45 @@ public class BookingServiceTests
         _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
-        Booking? saved = null;
-        _bookings.Setup(b => b.AddAsync(It.IsAny<Booking>(), It.IsAny<CancellationToken>()))
-            .Callback<Booking, CancellationToken>((b, _) => saved = b)
-            .Returns(Task.CompletedTask);
-        _bookings.Setup(b => b.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => saved);
-        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Card);
+        StubCreateAndReload();
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Card, 1);
 
         var result = await _sut.CreateAsync(request, BookerId);
 
         result.IsPaid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithPricedResource_ComputesTotalPriceFromPlayerCount()
+    {
+        var resourceId = Guid.NewGuid();
+        var resource = CreateResource(pricePerPlayer: 15m);
+        _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
+        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        StubCreateAndReload();
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 3);
+
+        var result = await _sut.CreateAsync(request, BookerId);
+
+        result.PlayerCount.Should().Be(3);
+        result.TotalPrice.Should().Be(45m);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithUnpricedResource_TotalPriceIsZero()
+    {
+        var resourceId = Guid.NewGuid();
+        var resource = CreateResource(pricePerPlayer: null);
+        _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
+        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        StubCreateAndReload();
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash, 4);
+
+        var result = await _sut.CreateAsync(request, BookerId);
+
+        result.TotalPrice.Should().Be(0m);
     }
 
     [Fact]
@@ -400,6 +438,24 @@ public class BookingServiceTests
         booking.Start.Should().Be(newStart);
         result.Start.Should().Be(newStart);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task MoveAsync_ToDifferentlyPricedResource_RecomputesTotalPrice()
+    {
+        var newResourceId = Guid.NewGuid();
+        var resource = CreateResource(pricePerPlayer: 22m);
+        var booking = CreateBooking(playerCount: 2, pricePerPlayer: 10m);
+        booking.TotalPrice.Should().Be(20m);
+        _bookings.Setup(b => b.GetByIdAsync(booking.Id, It.IsAny<CancellationToken>())).ReturnsAsync(booking);
+        _resources.Setup(r => r.GetByIdAsync(newResourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
+        _bookings.Setup(b => b.HasOverlapAsync(newResourceId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), booking.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        var request = new MoveBookingRequest(newResourceId, Now.AddHours(3), Now.AddHours(4));
+
+        var result = await _sut.MoveAsync(booking.Id, request);
+
+        result.TotalPrice.Should().Be(44m);
     }
 
     [Fact]
