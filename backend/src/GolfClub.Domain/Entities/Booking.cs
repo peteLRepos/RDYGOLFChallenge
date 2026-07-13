@@ -18,6 +18,8 @@ public class Booking
     public PaymentMethod PaymentMethod { get; private set; }
     public bool IsPaid { get; private set; }
     public BookingStatus Status { get; private set; }
+    public int PlayerCount { get; private set; }
+    public decimal TotalPrice { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
     private Booking()
@@ -29,16 +31,27 @@ public class Booking
     /// rather than read from the system clock here — keeps this constructor deterministic and testable
     /// without mocking. Start/End/now are all naive timestamps representing club-local time (see README).
     /// </param>
+    /// <param name="pricePerPlayer">
+    /// The resource's current price (0 if unpriced), supplied by the caller — Booking doesn't know
+    /// about Resource beyond its id, matching the existing bookerId/resourceId pattern. TotalPrice is
+    /// computed and stored here rather than derived live from Resource on every read, so a later price
+    /// change doesn't retroactively alter what an existing booking was charged.
+    /// </param>
     public Booking(
         Guid resourceId,
         Guid bookerId,
         DateTime start,
         DateTime end,
         PaymentMethod paymentMethod,
+        int playerCount,
+        decimal pricePerPlayer,
         DateTime now)
     {
         if (bookerId == Guid.Empty)
             throw new DomainException("Booker is required.");
+        if (playerCount < 1)
+            throw new DomainException("Player count must be at least 1.");
+        ValidatePricePerPlayer(pricePerPlayer);
         ValidateTimeRange(start, end, now);
         // Real payment processing is out of scope for this project (see README) — the option is
         // kept in the enum so the UI can list it (greyed out), but the backend never accepts it.
@@ -55,6 +68,8 @@ public class Booking
         // settled in person later, so it starts unpaid until an admin marks it paid.
         IsPaid = paymentMethod == PaymentMethod.Card;
         Status = BookingStatus.Pending;
+        PlayerCount = playerCount;
+        TotalPrice = pricePerPlayer * playerCount;
         CreatedAt = now;
     }
 
@@ -94,14 +109,17 @@ public class Booking
         IsPaid = true;
     }
 
-    public void Reschedule(Guid resourceId, DateTime start, DateTime end, DateTime now)
+    /// <param name="pricePerPlayer">The target resource's current price (0 if unpriced) — see the constructor for why TotalPrice is recomputed and stored rather than derived live.</param>
+    public void Reschedule(Guid resourceId, DateTime start, DateTime end, decimal pricePerPlayer, DateTime now)
     {
         EnsurePending("moved");
+        ValidatePricePerPlayer(pricePerPlayer);
         ValidateTimeRange(start, end, now);
 
         ResourceId = resourceId;
         Start = start;
         End = end;
+        TotalPrice = pricePerPlayer * PlayerCount;
     }
 
     private void EnsurePending(string action)
@@ -116,5 +134,13 @@ public class Booking
             throw new DomainException("Booking start must be before its end.");
         if (start < now)
             throw new DomainException("Cannot set a booking start time in the past.");
+    }
+
+    // 0 is a valid input here (an unpriced resource) — only reject something that couldn't have
+    // come from a real Resource.PricePerPlayer (which is already validated null-or-positive).
+    private static void ValidatePricePerPlayer(decimal pricePerPlayer)
+    {
+        if (pricePerPlayer < 0)
+            throw new DomainException("Price per player cannot be negative.");
     }
 }

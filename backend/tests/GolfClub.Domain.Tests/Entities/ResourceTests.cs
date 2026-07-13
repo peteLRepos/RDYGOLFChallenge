@@ -36,6 +36,64 @@ public class ResourceTests
     }
 
     [Fact]
+    public void Constructor_WithNoPricePerPlayer_LeavesItNull()
+    {
+        var resource = CreateResource();
+
+        resource.PricePerPlayer.Should().BeNull();
+    }
+
+    [Fact]
+    public void Constructor_WithPositivePricePerPlayer_SetsIt()
+    {
+        var resource = new Resource("6-Hole Course", ResourceType.TeeTime, 10, new TimeOnly(7, 0), new TimeOnly(19, 0), pricePerPlayer: 10m);
+
+        resource.PricePerPlayer.Should().Be(10m);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void Constructor_WithZeroOrNegativePricePerPlayer_Throws(decimal pricePerPlayer)
+    {
+        var act = () => new Resource("6-Hole Course", ResourceType.TeeTime, 10, new TimeOnly(7, 0), new TimeOnly(19, 0), pricePerPlayer);
+
+        act.Should().Throw<DomainException>().WithMessage("*Price per player*");
+    }
+
+    [Fact]
+    public void Update_WithPositivePricePerPlayer_SetsIt()
+    {
+        var resource = CreateResource();
+
+        resource.Update("Bay 1", 60, new TimeOnly(7, 0), new TimeOnly(21, 0), 12.5m);
+
+        resource.PricePerPlayer.Should().Be(12.5m);
+    }
+
+    [Fact]
+    public void Update_WithNullPricePerPlayer_ClearsIt()
+    {
+        var resource = new Resource("6-Hole Course", ResourceType.TeeTime, 10, new TimeOnly(7, 0), new TimeOnly(19, 0), pricePerPlayer: 10m);
+
+        resource.Update("6-Hole Course", 10, new TimeOnly(7, 0), new TimeOnly(19, 0), null);
+
+        resource.PricePerPlayer.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void Update_WithZeroOrNegativePricePerPlayer_Throws(decimal pricePerPlayer)
+    {
+        var resource = CreateResource();
+
+        var act = () => resource.Update("Bay 1", 60, new TimeOnly(7, 0), new TimeOnly(21, 0), pricePerPlayer);
+
+        act.Should().Throw<DomainException>().WithMessage("*Price per player*");
+    }
+
+    [Fact]
     public void Deactivate_SetsIsActiveFalse()
     {
         var resource = CreateResource();
