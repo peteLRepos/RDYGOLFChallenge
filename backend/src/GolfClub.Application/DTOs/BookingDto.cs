@@ -11,7 +11,6 @@ public record BookingDto(
     string CustomerEmail,
     DateTime Start,
     DateTime End,
-    PaymentMethod PaymentMethod,
     bool IsPaid,
     BookingStatus Status,
     int PlayerCount,
@@ -23,20 +22,28 @@ public record BookingDto(
 public record BookingPlayerDto(
     Guid UserId,
     string Name,
-    int Handicap);
+    int Handicap,
+    PaymentMethod PaymentMethod,
+    Guid AddedByUserId);
 
+/// <param name="Players">
+/// The full player list for the booking, in slot order. The first entry must be the requesting
+/// user (they're always their own booking's first player) — enforced in BookingService, not here.
+/// </param>
 public record CreateBookingRequest(
     Guid ResourceId,
     DateTime Start,
     DateTime End,
-    PaymentMethod PaymentMethod);
+    List<PlayerSelectionDto> Players);
+
+public record PlayerSelectionDto(Guid UserId, PaymentMethod PaymentMethod);
 
 public record MoveBookingRequest(
     Guid ResourceId,
     DateTime Start,
     DateTime End);
 
-public record AddPlayerRequest(Guid UserId);
+public record AddPlayerRequest(Guid UserId, PaymentMethod PaymentMethod);
 
 public record TimeSlotDto(
     DateTime Start,

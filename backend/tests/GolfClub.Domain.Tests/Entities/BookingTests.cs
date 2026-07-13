@@ -37,7 +37,7 @@ public class BookingTests
         var booking = CreateBooking(start, end, PaymentMethod.Cash);
 
         booking.Status.Should().Be(BookingStatus.Pending);
-        booking.PaymentMethod.Should().Be(PaymentMethod.Cash);
+        booking.Players.Single().PaymentMethod.Should().Be(PaymentMethod.Cash);
         booking.IsPaid.Should().BeFalse();
         booking.BookerId.Should().Be(BookerId);
         booking.Start.Should().Be(start);
@@ -50,7 +50,7 @@ public class BookingTests
     {
         var booking = CreateBooking(paymentMethod: PaymentMethod.Card);
 
-        booking.PaymentMethod.Should().Be(PaymentMethod.Card);
+        booking.Players.Single().PaymentMethod.Should().Be(PaymentMethod.Card);
         booking.IsPaid.Should().BeTrue();
     }
 

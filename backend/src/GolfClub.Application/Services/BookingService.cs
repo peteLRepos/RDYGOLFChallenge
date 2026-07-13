@@ -2,6 +2,7 @@ using GolfClub.Application.DTOs;
 using GolfClub.Application.Exceptions;
 using GolfClub.Application.Interfaces;
 using GolfClub.Domain.Entities;
+using GolfClub.Domain.Enums;
 using GolfClub.Domain.Exceptions;
 
 namespace GolfClub.Application.Services;
@@ -74,6 +75,11 @@ public class BookingService : IBookingService
 
     public async Task<BookingDto> CreateAsync(CreateBookingRequest request, Guid bookerId, CancellationToken ct = default)
     {
+        if (request.Players.Count == 0)
+            throw new DomainException("A booking needs at least one player.");
+        if (request.Players[0].UserId != bookerId)
+            throw new DomainException("The requesting user must be the booking's first player.");
+
         var resource = await ValidateSlotAsync(request.ResourceId, request.Start, request.End, excludeBookingId: null, ct);
         var booker = await _users.GetByIdAsync(bookerId, ct)
             ?? throw new NotFoundException($"User '{bookerId}' was not found.");
@@ -83,10 +89,20 @@ public class BookingService : IBookingService
             bookerId,
             request.Start,
             request.End,
-            request.PaymentMethod,
+            request.Players[0].PaymentMethod,
             booker.Handicap,
             resource.PricePerPlayer ?? 0m,
             _dateTimeProvider.Now);
+
+        // Any further players in the request were selected by the booker in the same dialog, so
+        // they're all "added by" the booker — a later self-join uses AddPlayerAsync directly instead.
+        foreach (var extraPlayer in request.Players.Skip(1))
+        {
+            var user = await _users.GetByIdAsync(extraPlayer.UserId, ct)
+                ?? throw new NotFoundException($"User '{extraPlayer.UserId}' was not found.");
+            booking.AddPlayer(extraPlayer.UserId, user.Handicap, extraPlayer.PaymentMethod, addedByUserId: bookerId, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
+        }
+
         await _bookings.AddAsync(booking, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 
@@ -144,7 +160,7 @@ public class BookingService : IBookingService
     /// when another user self-joins. <paramref name="targetUserId"/> is who's being added;
     /// <paramref name="requestingUserId"/>/<paramref name="isAdmin"/> is who's asking.
     /// </summary>
-    public async Task<BookingDto> AddPlayerAsync(Guid bookingId, Guid targetUserId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default)
+    public async Task<BookingDto> AddPlayerAsync(Guid bookingId, Guid targetUserId, PaymentMethod paymentMethod, Guid requestingUserId, bool isAdmin, CancellationToken ct = default)
     {
         var booking = await _bookings.GetByIdAsync(bookingId, ct)
             ?? throw new NotFoundException($"Booking '{bookingId}' was not found.");
@@ -158,7 +174,22 @@ public class BookingService : IBookingService
         var resource = await _resources.GetByIdAsync(booking.ResourceId, ct)
             ?? throw new NotFoundException($"Resource '{booking.ResourceId}' was not found.");
 
-        booking.AddPlayer(targetUserId, targetUser.Handicap, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
+        // The requester is who's actually adding the player: the booker/admin when inviting a
+        // guest, or the target themselves when self-joining — matches Booking.RemovePlayer's rule.
+        booking.AddPlayer(targetUserId, targetUser.Handicap, paymentMethod, addedByUserId: requestingUserId, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
+    }
+
+    public async Task<BookingDto> RemovePlayerAsync(Guid bookingId, Guid targetUserId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default)
+    {
+        var booking = await _bookings.GetByIdAsync(bookingId, ct)
+            ?? throw new NotFoundException($"Booking '{bookingId}' was not found.");
+        var resource = await _resources.GetByIdAsync(booking.ResourceId, ct)
+            ?? throw new NotFoundException($"Resource '{booking.ResourceId}' was not found.");
+
+        booking.RemovePlayer(targetUserId, requestingUserId, isAdmin, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
         await _unitOfWork.SaveChangesAsync(ct);
 
         return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
@@ -200,12 +231,11 @@ public class BookingService : IBookingService
         booking.Booker?.Email ?? string.Empty,
         booking.Start,
         booking.End,
-        booking.PaymentMethod,
         booking.IsPaid,
         booking.Status,
         booking.PlayerCount,
         booking.CombinedHandicap,
-        booking.Players.Select(p => new BookingPlayerDto(p.UserId, p.User?.Name ?? string.Empty, p.Handicap)).ToList(),
+        booking.Players.Select(p => new BookingPlayerDto(p.UserId, p.User?.Name ?? string.Empty, p.Handicap, p.PaymentMethod, p.AddedByUserId)).ToList(),
         booking.TotalPrice,
         booking.CreatedAt);
 }
