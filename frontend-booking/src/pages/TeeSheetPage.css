@@ -13,6 +13,7 @@
 }
 
 .slot {
+  width: 100%;
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.4rem;
   text-align: center;
@@ -20,6 +21,11 @@
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  font-family: inherit;
+}
+
+.slot:disabled {
+  cursor: not-allowed;
 }
 
 .slot-time {
