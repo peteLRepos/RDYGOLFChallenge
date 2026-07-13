@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { api, ApiError } from './api/client';
-import { getAdminKey, setAdminKey } from './api/adminKey';
 import type { Booking, Resource } from './api/types';
+import { useAuth } from './auth/AuthContext';
+import { LoginScreen } from './components/LoginScreen';
+import { Header } from './components/Header';
 import './App.css';
 
-function App() {
-  const [adminKey, setAdminKeyInput] = useState(getAdminKey());
+function DashboardPage() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = () => {
+  useEffect(() => {
     setError(null);
     Promise.all([
       api.get<Resource[]>('/api/admin/resources'),
@@ -23,34 +25,10 @@ function App() {
       .catch((err) =>
         setError(err instanceof ApiError ? `${err.status}: ${err.message}` : 'Failed to load admin data.'),
       );
-  };
-
-  useEffect(() => {
-    if (adminKey) loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const handleSaveKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    setAdminKey(adminKey);
-    loadData();
-  };
 
   return (
     <main className="page">
-      <h1>Golf Club Admin</h1>
-
-      <form className="key-form" onSubmit={handleSaveKey}>
-        <label htmlFor="admin-key">Admin key</label>
-        <input
-          id="admin-key"
-          type="password"
-          value={adminKey}
-          onChange={(e) => setAdminKeyInput(e.target.value)}
-        />
-        <button type="submit">Connect</button>
-      </form>
-
       {error && <p className="error">{error}</p>}
 
       <section>
@@ -107,6 +85,23 @@ function App() {
         </table>
       </section>
     </main>
+  );
+}
+
+function App() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
+  return (
+    <>
+      <Header title="Golf Club Admin" />
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+      </Routes>
+    </>
   );
 }
 
