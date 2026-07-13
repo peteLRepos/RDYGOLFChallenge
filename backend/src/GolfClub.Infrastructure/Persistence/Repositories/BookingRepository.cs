@@ -43,12 +43,22 @@ public class BookingRepository : IBookingRepository
             .OrderByDescending(b => b.Start)
             .ToListAsync(ct);
 
-    public async Task<bool> HasOverlapAsync(Guid resourceId, DateTime start, DateTime end, CancellationToken ct = default) =>
+    public async Task<List<Booking>> GetByBookerAsync(Guid bookerId, CancellationToken ct = default) =>
+        await _context.Bookings
+            .AsNoTracking()
+            .Include(b => b.Resource)
+            .Include(b => b.Booker)
+            .Where(b => b.BookerId == bookerId)
+            .OrderByDescending(b => b.Start)
+            .ToListAsync(ct);
+
+    public async Task<bool> HasOverlapAsync(Guid resourceId, DateTime start, DateTime end, Guid? excludeBookingId = null, CancellationToken ct = default) =>
         await _context.Bookings.AnyAsync(
             b => b.ResourceId == resourceId
                  && b.Status != BookingStatus.Cancelled
                  && b.Start < end
-                 && start < b.End,
+                 && start < b.End
+                 && (excludeBookingId == null || b.Id != excludeBookingId),
             ct);
 
     public async Task AddAsync(Booking booking, CancellationToken ct = default) =>
