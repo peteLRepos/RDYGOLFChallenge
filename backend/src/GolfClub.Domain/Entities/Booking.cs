@@ -15,6 +15,10 @@ public class Booking
 
     private readonly List<BookingPlayer> _players = new();
 
+    // Set once by MarkPaid — once an admin has manually settled a booking, later roster changes
+    // (AddPlayer/RemovePlayer) must not let RecomputeIsPaid silently flip IsPaid back to false.
+    private bool _manuallyMarkedPaid;
+
     public Guid Id { get; private set; }
     public Guid ResourceId { get; private set; }
     public Resource? Resource { get; private set; }
@@ -57,6 +61,8 @@ public class Booking
         decimal pricePerPlayer,
         DateTime now)
     {
+        if (resourceId == Guid.Empty)
+            throw new DomainException("Resource is required.");
         if (bookerId == Guid.Empty)
             throw new DomainException("Booker is required.");
         ValidatePricePerPlayer(pricePerPlayer);
@@ -71,8 +77,7 @@ public class Booking
         Status = BookingStatus.Pending;
         CreatedAt = now;
         _players.Add(new BookingPlayer(bookerId, bookerHandicap, bookerPaymentMethod, addedByUserId: bookerId, now));
-        TotalPrice = pricePerPlayer * PlayerCount;
-        RecomputeIsPaid();
+        Reprice(pricePerPlayer);
     }
 
     public bool OverlapsWith(DateTime otherStart, DateTime otherEnd)
@@ -109,6 +114,7 @@ public class Booking
             throw new DomainException("Booking is already paid.");
 
         IsPaid = true;
+        _manuallyMarkedPaid = true;
     }
 
     /// <param name="pricePerPlayer">The target resource's current price (0 if unpriced) — see the constructor for why TotalPrice is recomputed and stored rather than derived live.</param>
@@ -144,20 +150,17 @@ public class Booking
             throw new DomainException($"Adding this player would push the combined handicap over {MaxCombinedHandicap}.");
 
         _players.Add(new BookingPlayer(userId, handicap, paymentMethod, addedByUserId, now));
-        TotalPrice = pricePerPlayer * PlayerCount;
-        RecomputeIsPaid();
+        Reprice(pricePerPlayer);
     }
 
     /// <summary>
     /// Removes a player who isn't the original booker (the booker can never be removed here —
-    /// cancel the whole booking instead). Allowed for the player themselves (self-unbook, regardless
-    /// of who added them) or for whoever added them (e.g. the booker removing a guest they invited).
-    /// A player who joined an open slot on their own can only be removed by themselves — the booker
-    /// cannot unbook them.
+    /// cancel the whole booking instead). Who is allowed to call this for a given player is an
+    /// authorization decision made by the caller (see BookingService.RemovePlayerAsync); this
+    /// method only enforces the business rule that the booker can't be removed.
     /// </summary>
     /// <param name="pricePerPlayer">The resource's current price (0 if unpriced) — see the constructor for why TotalPrice is recomputed and stored.</param>
-    /// <param name="isAdmin">Admins bypass the added-by/self rule and can remove any non-booker player.</param>
-    public void RemovePlayer(Guid targetUserId, Guid requestingUserId, bool isAdmin, decimal pricePerPlayer, DateTime now)
+    public void RemovePlayer(Guid targetUserId, decimal pricePerPlayer, DateTime now)
     {
         EnsurePending("removed");
         ValidatePricePerPlayer(pricePerPlayer);
@@ -167,21 +170,27 @@ public class Booking
         var player = _players.FirstOrDefault(p => p.UserId == targetUserId)
             ?? throw new DomainException("This user is not in the booking.");
 
-        var isSelfRemoval = requestingUserId == targetUserId;
-        var isRemoverWhoAddedThem = requestingUserId == player.AddedByUserId;
-        if (!isAdmin && !isSelfRemoval && !isRemoverWhoAddedThem)
-            throw new DomainException("You can only remove a player you added, or remove yourself.");
-
         _players.Remove(player);
+        Reprice(pricePerPlayer);
+    }
+
+    // Shared by AddPlayer/RemovePlayer: both change the roster, so both must recompute the
+    // per-player-driven total and paid status the same way.
+    private void Reprice(decimal pricePerPlayer)
+    {
         TotalPrice = pricePerPlayer * PlayerCount;
         RecomputeIsPaid();
     }
 
     // A booking is paid only once every player is — one cash player is enough to leave the whole
     // booking unpaid until an admin settles it (see MarkPaid). Recomputed on every player add/remove
-    // rather than left stale from whatever it was at creation time.
+    // rather than left stale from whatever it was at creation time — except once MarkPaid has been
+    // called manually, which must stick regardless of later roster changes.
     private void RecomputeIsPaid()
     {
+        if (_manuallyMarkedPaid)
+            return;
+
         IsPaid = _players.All(p => p.PaymentMethod == PaymentMethod.Card);
     }
 

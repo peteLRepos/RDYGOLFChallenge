@@ -78,15 +78,17 @@ public class UserService : IUserService
 
     public async Task<ForgotPasswordResponseDto> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct = default)
     {
+        // Always returns 200 rather than a 404 for an unknown email — see ForgotPasswordResponseDto.
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var user = await _users.GetByEmailAsync(normalizedEmail, ct)
-            ?? throw new NotFoundException("No account was found with this email.");
+        var user = await _users.GetByEmailAsync(normalizedEmail, ct);
+        if (user is null)
+            return new ForgotPasswordResponseDto(AccountFound: false, NewPassword: null);
 
         var newPassword = GenerateRandomPassword();
         user.ResetPassword(_passwordHasher.Hash(newPassword));
         await _unitOfWork.SaveChangesAsync(ct);
 
-        return new ForgotPasswordResponseDto(newPassword);
+        return new ForgotPasswordResponseDto(AccountFound: true, newPassword);
     }
 
     private static string GenerateRandomPassword()

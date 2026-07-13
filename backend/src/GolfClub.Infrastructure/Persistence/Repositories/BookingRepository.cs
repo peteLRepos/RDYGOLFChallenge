@@ -45,13 +45,13 @@ public class BookingRepository : IBookingRepository
             .OrderByDescending(b => b.Start)
             .ToListAsync(ct);
 
-    public async Task<List<Booking>> GetByBookerAsync(Guid bookerId, CancellationToken ct = default) =>
+    public async Task<List<Booking>> GetForUserAsync(Guid userId, CancellationToken ct = default) =>
         await _context.Bookings
             .AsNoTracking()
             .Include(b => b.Resource)
             .Include(b => b.Booker)
             .Include(b => b.Players).ThenInclude(p => p.User)
-            .Where(b => b.BookerId == bookerId)
+            .Where(b => b.BookerId == userId || b.Players.Any(p => p.UserId == userId))
             .OrderByDescending(b => b.Start)
             .ToListAsync(ct);
 
