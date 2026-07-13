@@ -14,3 +14,38 @@ export interface Resource {
   closingTime: string;
   isActive: boolean;
 }
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  isAdmin: boolean;
+  isActive: boolean;
+  handicap: number;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+  handicap?: number | null;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  newPassword: string;
+}

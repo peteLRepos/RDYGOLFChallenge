@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { api, ApiError } from './api/client';
 import type { Resource } from './api/types';
+import { Header } from './components/Header';
 import './App.css';
 
-function App() {
+function HomePage() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,7 +20,6 @@ function App() {
 
   return (
     <main className="page">
-      <h1>Golf Club Booking</h1>
       <p className="subtitle">Browse what's available and book a time slot.</p>
 
       {isLoading && <p>Loading resources…</p>}
@@ -36,6 +37,17 @@ function App() {
         ))}
       </ul>
     </main>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <Header title="Golf Club Booking" />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+      </Routes>
+    </>
   );
 }
 

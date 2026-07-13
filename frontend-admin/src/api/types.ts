@@ -26,3 +26,31 @@ export interface Booking {
   status: 'Confirmed' | 'Cancelled';
   createdAt: string;
 }
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  isAdmin: boolean;
+  isActive: boolean;
+  handicap: number;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  newPassword: string;
+}
