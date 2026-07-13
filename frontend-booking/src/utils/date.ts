@@ -28,3 +28,13 @@ export function formatDayLabel(date: Date): string {
 export function formatTime(isoString: string): string {
   return new Date(isoString).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
+
+export function formatDateTime(isoString: string): string {
+  return new Date(isoString).toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}

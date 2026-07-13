@@ -534,7 +534,7 @@ public class BookingServiceTests
     public async Task GetMyBookingsAsync_ReturnsOnlyTheCallersBookings()
     {
         var booking = CreateBooking(bookerId: BookerId);
-        _bookings.Setup(b => b.GetByBookerAsync(BookerId, It.IsAny<CancellationToken>())).ReturnsAsync([booking]);
+        _bookings.Setup(b => b.GetForUserAsync(BookerId, It.IsAny<CancellationToken>())).ReturnsAsync([booking]);
 
         var result = await _sut.GetMyBookingsAsync(BookerId);
 

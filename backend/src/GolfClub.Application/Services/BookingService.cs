@@ -60,9 +60,9 @@ public class BookingService : IBookingService
         return bookings.Select(ToDto).ToList();
     }
 
-    public async Task<List<BookingDto>> GetMyBookingsAsync(Guid bookerId, CancellationToken ct = default)
+    public async Task<List<BookingDto>> GetMyBookingsAsync(Guid userId, CancellationToken ct = default)
     {
-        var bookings = await _bookings.GetByBookerAsync(bookerId, ct);
+        var bookings = await _bookings.GetForUserAsync(userId, ct);
         return bookings.Select(ToDto).ToList();
     }
 
