@@ -8,6 +8,7 @@ public record UserDto(
     string Email,
     bool IsAdmin,
     bool IsActive,
+    int Handicap,
     DateTime CreatedAt)
 {
     public static UserDto FromEntity(User user) => new(
@@ -16,6 +17,7 @@ public record UserDto(
         user.Email,
         user.IsAdmin,
         user.IsActive,
+        user.Handicap,
         user.CreatedAt);
 }
 
@@ -25,7 +27,7 @@ public record UserDto(
 /// </summary>
 public record UserSearchResultDto(Guid Id, string Name);
 
-public record RegisterUserRequest(string Name, string Email, string Password);
+public record RegisterUserRequest(string Name, string Email, string Password, int? Handicap);
 
 public record LoginRequest(string Email, string Password);
 

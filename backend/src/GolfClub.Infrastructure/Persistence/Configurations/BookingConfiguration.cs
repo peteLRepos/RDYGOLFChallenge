@@ -20,8 +20,10 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(b => b.IsPaid)
             .IsRequired();
 
-        builder.Property(b => b.PlayerCount)
-            .IsRequired();
+        // Derived from Players.Count/Players.Sum(...) — not persisted columns, not settable, so
+        // they'd otherwise trip up EF's convention-based model discovery.
+        builder.Ignore(b => b.PlayerCount);
+        builder.Ignore(b => b.CombinedHandicap);
 
         // Snapshotted at booking time (see Booking's constructor doc) rather than derived live
         // from Resource.PricePerPlayer, so a later price change doesn't alter what an existing
@@ -61,5 +63,17 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .WithMany()
             .HasForeignKey(b => b.BookerId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // A booking's players don't outlive the booking, unlike the Booker/Resource FKs above
+        // (which use Restrict) — Cascade is correct here since BookingPlayer only exists as part
+        // of this aggregate.
+        builder.HasMany(b => b.Players)
+            .WithOne()
+            .HasForeignKey("BookingId")
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(b => b.Players)
+            .HasField("_players")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

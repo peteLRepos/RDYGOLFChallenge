@@ -10,17 +10,20 @@ public class BookingService : IBookingService
 {
     private readonly IBookingRepository _bookings;
     private readonly IResourceRepository _resources;
+    private readonly IUserRepository _users;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDateTimeProvider _dateTimeProvider;
 
     public BookingService(
         IBookingRepository bookings,
         IResourceRepository resources,
+        IUserRepository users,
         IUnitOfWork unitOfWork,
         IDateTimeProvider dateTimeProvider)
     {
         _bookings = bookings;
         _resources = resources;
+        _users = users;
         _unitOfWork = unitOfWork;
         _dateTimeProvider = dateTimeProvider;
     }
@@ -72,6 +75,8 @@ public class BookingService : IBookingService
     public async Task<BookingDto> CreateAsync(CreateBookingRequest request, Guid bookerId, CancellationToken ct = default)
     {
         var resource = await ValidateSlotAsync(request.ResourceId, request.Start, request.End, excludeBookingId: null, ct);
+        var booker = await _users.GetByIdAsync(bookerId, ct)
+            ?? throw new NotFoundException($"User '{bookerId}' was not found.");
 
         var booking = new Booking(
             request.ResourceId,
@@ -79,15 +84,15 @@ public class BookingService : IBookingService
             request.Start,
             request.End,
             request.PaymentMethod,
-            request.PlayerCount,
+            booker.Handicap,
             resource.PricePerPlayer ?? 0m,
             _dateTimeProvider.Now);
         await _bookings.AddAsync(booking, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 
-        // Re-fetch rather than mapping `booking` directly: the Resource/Booker navigation
+        // Re-fetch rather than mapping `booking` directly: the Resource/Booker/Players navigation
         // properties on the just-created entity were never loaded (no Include on a new entity),
-        // so ToDto would see them as null. GetByIdAsync already includes both.
+        // so ToDto would see them as null/empty. GetByIdAsync already includes all three.
         return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
     }
 
@@ -134,6 +139,31 @@ public class BookingService : IBookingService
         return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
     }
 
+    /// <summary>
+    /// Adds a named player to a booking — used both when the booker invites a specific guest and
+    /// when another user self-joins. <paramref name="targetUserId"/> is who's being added;
+    /// <paramref name="requestingUserId"/>/<paramref name="isAdmin"/> is who's asking.
+    /// </summary>
+    public async Task<BookingDto> AddPlayerAsync(Guid bookingId, Guid targetUserId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default)
+    {
+        var booking = await _bookings.GetByIdAsync(bookingId, ct)
+            ?? throw new NotFoundException($"Booking '{bookingId}' was not found.");
+
+        // Allowed: the booker or an admin inviting anyone, or any user adding themselves.
+        if (!isAdmin && requestingUserId != booking.BookerId && requestingUserId != targetUserId)
+            throw new ForbiddenException("Only the booker or an admin can add another player to this booking.");
+
+        var targetUser = await _users.GetByIdAsync(targetUserId, ct)
+            ?? throw new NotFoundException($"User '{targetUserId}' was not found.");
+        var resource = await _resources.GetByIdAsync(booking.ResourceId, ct)
+            ?? throw new NotFoundException($"Resource '{booking.ResourceId}' was not found.");
+
+        booking.AddPlayer(targetUserId, targetUser.Handicap, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
+    }
+
     // Returns the validated Resource so callers that need its PricePerPlayer (Create/Move) don't
     // have to re-fetch it — they already both re-fetch the Booking afterward for its DTO anyway
     // (see those methods' comments), so this at least avoids a second, separate Resources lookup.
@@ -174,6 +204,8 @@ public class BookingService : IBookingService
         booking.IsPaid,
         booking.Status,
         booking.PlayerCount,
+        booking.CombinedHandicap,
+        booking.Players.Select(p => new BookingPlayerDto(p.UserId, p.User?.Name ?? string.Empty, p.Handicap)).ToList(),
         booking.TotalPrice,
         booking.CreatedAt);
 }

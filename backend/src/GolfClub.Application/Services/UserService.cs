@@ -51,7 +51,7 @@ public class UserService : IUserService
             throw new DomainException("A user with this email already exists.");
 
         var passwordHash = _passwordHasher.Hash(request.Password);
-        var user = new User(request.Name, request.Email, passwordHash, _dateTimeProvider.Now);
+        var user = new User(request.Name, request.Email, passwordHash, _dateTimeProvider.Now, request.Handicap);
 
         await _users.AddAsync(user, ct);
         try
