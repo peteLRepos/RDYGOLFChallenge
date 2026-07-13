@@ -61,6 +61,9 @@ public class BookingServiceTests
             pricePerPlayer,
             Now);
 
+    private static List<PlayerSelectionDto> SoloPlayer(PaymentMethod paymentMethod, Guid? bookerId = null) =>
+        [new PlayerSelectionDto(bookerId ?? BookerId, paymentMethod)];
+
     /// <summary>Stubs the AddAsync/GetByIdAsync round trip CreateAsync does to re-fetch its DTO.</summary>
     private void StubCreateAndReload()
     {
@@ -77,7 +80,7 @@ public class BookingServiceTests
     {
         var resourceId = Guid.NewGuid();
         _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync((Resource?)null);
-        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.Cash));
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -89,7 +92,7 @@ public class BookingServiceTests
     {
         var resource = CreateResource(isActive: false);
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.Cash));
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -102,7 +105,7 @@ public class BookingServiceTests
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
         var day = Now.Date;
-        var request = new CreateBookingRequest(Guid.NewGuid(), day.AddHours(5), day.AddHours(6), PaymentMethod.Cash);
+        var request = new CreateBookingRequest(Guid.NewGuid(), day.AddHours(5), day.AddHours(6), SoloPlayer(PaymentMethod.Cash));
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -116,7 +119,7 @@ public class BookingServiceTests
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.Cash));
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -130,7 +133,7 @@ public class BookingServiceTests
         // regardless of the real wall-clock time when the test suite runs.
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(-1), Now, PaymentMethod.Cash);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(-1), Now, SoloPlayer(PaymentMethod.Cash));
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -142,7 +145,7 @@ public class BookingServiceTests
     {
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), PaymentMethod.SerialTicket);
+        var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.SerialTicket));
 
         var act = () => _sut.CreateAsync(request, BookerId);
 
@@ -160,7 +163,7 @@ public class BookingServiceTests
         StubCreateAndReload();
         var start = Now.AddHours(1);
         var end = Now.AddHours(2);
-        var request = new CreateBookingRequest(resourceId, start, end, PaymentMethod.Cash);
+        var request = new CreateBookingRequest(resourceId, start, end, SoloPlayer(PaymentMethod.Cash));
 
         var result = await _sut.CreateAsync(request, BookerId);
 
@@ -168,7 +171,7 @@ public class BookingServiceTests
         result.Start.Should().Be(start);
         result.End.Should().Be(end);
         result.BookerId.Should().Be(BookerId);
-        result.PaymentMethod.Should().Be(PaymentMethod.Cash);
+        result.Players.Single().PaymentMethod.Should().Be(PaymentMethod.Cash);
         result.IsPaid.Should().BeFalse();
         result.Status.Should().Be(BookingStatus.Pending);
         _bookings.Verify(b => b.AddAsync(It.IsAny<Booking>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -184,7 +187,7 @@ public class BookingServiceTests
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         StubCreateAndReload();
-        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Card);
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.Card));
 
         var result = await _sut.CreateAsync(request, BookerId);
 
@@ -200,7 +203,7 @@ public class BookingServiceTests
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         StubCreateAndReload();
-        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.Cash));
 
         var result = await _sut.CreateAsync(request, BookerId);
 
@@ -217,7 +220,7 @@ public class BookingServiceTests
         _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         StubCreateAndReload();
-        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), PaymentMethod.Cash);
+        var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.Cash));
 
         var result = await _sut.CreateAsync(request, BookerId);
 

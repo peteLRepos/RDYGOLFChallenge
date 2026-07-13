@@ -12,11 +12,6 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
 
         builder.HasKey(b => b.Id);
 
-        builder.Property(b => b.PaymentMethod)
-            .HasConversion<string>()
-            .HasMaxLength(20)
-            .IsRequired();
-
         builder.Property(b => b.IsPaid)
             .IsRequired();
 

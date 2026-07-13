@@ -55,17 +55,17 @@ public class BookingsController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("{id:guid}/join")]
-    public async Task<IActionResult> Join(Guid id, CancellationToken ct)
-    {
-        var booking = await _bookingService.AddPlayerAsync(id, _currentUser.UserId, _currentUser.UserId, _currentUser.IsAdmin, ct);
-        return Ok(booking);
-    }
-
     [HttpPost("{id:guid}/players")]
     public async Task<IActionResult> AddPlayer(Guid id, [FromBody] AddPlayerRequest request, CancellationToken ct)
     {
-        var booking = await _bookingService.AddPlayerAsync(id, request.UserId, _currentUser.UserId, _currentUser.IsAdmin, ct);
+        var booking = await _bookingService.AddPlayerAsync(id, request.UserId, request.PaymentMethod, _currentUser.UserId, _currentUser.IsAdmin, ct);
+        return Ok(booking);
+    }
+
+    [HttpDelete("{id:guid}/players/{userId:guid}")]
+    public async Task<IActionResult> RemovePlayer(Guid id, Guid userId, CancellationToken ct)
+    {
+        var booking = await _bookingService.RemovePlayerAsync(id, userId, _currentUser.UserId, _currentUser.IsAdmin, ct);
         return Ok(booking);
     }
 }

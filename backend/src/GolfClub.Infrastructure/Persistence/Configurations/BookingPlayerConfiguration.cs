@@ -24,6 +24,14 @@ public class BookingPlayerConfiguration : IEntityTypeConfiguration<BookingPlayer
         builder.Property(p => p.Handicap)
             .IsRequired();
 
+        builder.Property(p => p.PaymentMethod)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.Property(p => p.AddedByUserId)
+            .IsRequired();
+
         builder.Property(p => p.JoinedAt)
             .HasColumnType("timestamp without time zone")
             .IsRequired();

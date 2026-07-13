@@ -1,4 +1,5 @@
 using GolfClub.Application.DTOs;
+using GolfClub.Domain.Enums;
 
 namespace GolfClub.Application.Services;
 
@@ -30,5 +31,12 @@ public interface IBookingService
     /// <paramref name="requestingUserId"/>/<paramref name="isAdmin"/> is who's asking. Allowed if
     /// the requester is the booker, an admin, or adding themselves (self-join).
     /// </summary>
-    Task<BookingDto> AddPlayerAsync(Guid bookingId, Guid targetUserId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default);
+    Task<BookingDto> AddPlayerAsync(Guid bookingId, Guid targetUserId, PaymentMethod paymentMethod, Guid requestingUserId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes a player who isn't the original booker. Allowed for the player themselves
+    /// (self-unbook), for whoever added them (e.g. the booker removing a guest they invited), or
+    /// for an admin. See <see cref="Domain.Entities.Booking.RemovePlayer"/> for the exact rule.
+    /// </summary>
+    Task<BookingDto> RemovePlayerAsync(Guid bookingId, Guid targetUserId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default);
 }

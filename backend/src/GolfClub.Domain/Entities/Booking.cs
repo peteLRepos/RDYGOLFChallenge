@@ -22,7 +22,6 @@ public class Booking
     public User? Booker { get; private set; }
     public DateTime Start { get; private set; }
     public DateTime End { get; private set; }
-    public PaymentMethod PaymentMethod { get; private set; }
     public bool IsPaid { get; private set; }
     public BookingStatus Status { get; private set; }
     public decimal TotalPrice { get; private set; }
@@ -53,7 +52,7 @@ public class Booking
         Guid bookerId,
         DateTime start,
         DateTime end,
-        PaymentMethod paymentMethod,
+        PaymentMethod bookerPaymentMethod,
         int bookerHandicap,
         decimal pricePerPlayer,
         DateTime now)
@@ -62,24 +61,18 @@ public class Booking
             throw new DomainException("Booker is required.");
         ValidatePricePerPlayer(pricePerPlayer);
         ValidateTimeRange(start, end, now);
-        // Real payment processing is out of scope for this project (see README) — the option is
-        // kept in the enum so the UI can list it (greyed out), but the backend never accepts it.
-        if (paymentMethod == PaymentMethod.SerialTicket)
-            throw new DomainException("Serial ticket payments are not available yet.");
+        ValidatePaymentMethod(bookerPaymentMethod);
 
         Id = Guid.NewGuid();
         ResourceId = resourceId;
         BookerId = bookerId;
         Start = start;
         End = end;
-        PaymentMethod = paymentMethod;
-        // Card payments are recorded as immediately paid (no real processing happens); cash is
-        // settled in person later, so it starts unpaid until an admin marks it paid.
-        IsPaid = paymentMethod == PaymentMethod.Card;
         Status = BookingStatus.Pending;
         CreatedAt = now;
-        _players.Add(new BookingPlayer(bookerId, bookerHandicap, now));
+        _players.Add(new BookingPlayer(bookerId, bookerHandicap, bookerPaymentMethod, addedByUserId: bookerId, now));
         TotalPrice = pricePerPlayer * PlayerCount;
+        RecomputeIsPaid();
     }
 
     public bool OverlapsWith(DateTime otherStart, DateTime otherEnd)
@@ -134,13 +127,15 @@ public class Booking
     /// <summary>
     /// Adds a named player — used both when the booker invites a specific guest and when another
     /// user self-joins; the distinction between those two cases is an authorization decision made
-    /// by the caller (see BookingService.AddPlayerAsync), not different domain behavior.
+    /// by the caller (see BookingService.AddPlayerAsync), but <paramref name="addedByUserId"/> is
+    /// still recorded here since it drives what <see cref="RemovePlayer"/> later allows.
     /// </summary>
     /// <param name="pricePerPlayer">The resource's current price (0 if unpriced) — see the constructor for why TotalPrice is recomputed and stored.</param>
-    public void AddPlayer(Guid userId, int handicap, decimal pricePerPlayer, DateTime now)
+    public void AddPlayer(Guid userId, int handicap, PaymentMethod paymentMethod, Guid addedByUserId, decimal pricePerPlayer, DateTime now)
     {
         EnsurePending("joined");
         ValidatePricePerPlayer(pricePerPlayer);
+        ValidatePaymentMethod(paymentMethod);
         if (_players.Any(p => p.UserId == userId))
             throw new DomainException("This user is already in the booking.");
         if (_players.Count >= MaxPlayers)
@@ -148,8 +143,54 @@ public class Booking
         if (CombinedHandicap + handicap > MaxCombinedHandicap)
             throw new DomainException($"Adding this player would push the combined handicap over {MaxCombinedHandicap}.");
 
-        _players.Add(new BookingPlayer(userId, handicap, now));
+        _players.Add(new BookingPlayer(userId, handicap, paymentMethod, addedByUserId, now));
         TotalPrice = pricePerPlayer * PlayerCount;
+        RecomputeIsPaid();
+    }
+
+    /// <summary>
+    /// Removes a player who isn't the original booker (the booker can never be removed here —
+    /// cancel the whole booking instead). Allowed for the player themselves (self-unbook, regardless
+    /// of who added them) or for whoever added them (e.g. the booker removing a guest they invited).
+    /// A player who joined an open slot on their own can only be removed by themselves — the booker
+    /// cannot unbook them.
+    /// </summary>
+    /// <param name="pricePerPlayer">The resource's current price (0 if unpriced) — see the constructor for why TotalPrice is recomputed and stored.</param>
+    /// <param name="isAdmin">Admins bypass the added-by/self rule and can remove any non-booker player.</param>
+    public void RemovePlayer(Guid targetUserId, Guid requestingUserId, bool isAdmin, decimal pricePerPlayer, DateTime now)
+    {
+        EnsurePending("removed");
+        ValidatePricePerPlayer(pricePerPlayer);
+        if (targetUserId == BookerId)
+            throw new DomainException("The original booker cannot be removed — cancel the booking instead.");
+
+        var player = _players.FirstOrDefault(p => p.UserId == targetUserId)
+            ?? throw new DomainException("This user is not in the booking.");
+
+        var isSelfRemoval = requestingUserId == targetUserId;
+        var isRemoverWhoAddedThem = requestingUserId == player.AddedByUserId;
+        if (!isAdmin && !isSelfRemoval && !isRemoverWhoAddedThem)
+            throw new DomainException("You can only remove a player you added, or remove yourself.");
+
+        _players.Remove(player);
+        TotalPrice = pricePerPlayer * PlayerCount;
+        RecomputeIsPaid();
+    }
+
+    // A booking is paid only once every player is — one cash player is enough to leave the whole
+    // booking unpaid until an admin settles it (see MarkPaid). Recomputed on every player add/remove
+    // rather than left stale from whatever it was at creation time.
+    private void RecomputeIsPaid()
+    {
+        IsPaid = _players.All(p => p.PaymentMethod == PaymentMethod.Card);
+    }
+
+    // Real payment processing is out of scope for this project (see README) — the option is kept
+    // in the enum so the UI can list it (greyed out), but the backend never accepts it.
+    private static void ValidatePaymentMethod(PaymentMethod paymentMethod)
+    {
+        if (paymentMethod == PaymentMethod.SerialTicket)
+            throw new DomainException("Serial ticket payments are not available yet.");
     }
 
     private void EnsurePending(string action)
