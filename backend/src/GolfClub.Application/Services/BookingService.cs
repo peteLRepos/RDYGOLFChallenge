@@ -44,8 +44,10 @@ public class BookingService : IBookingService
         while (slotStart + duration <= dayEnd)
         {
             var slotEnd = slotStart + duration;
-            var isAvailable = existingBookings.All(b => !b.OverlapsWith(slotStart, slotEnd));
-            slots.Add(new TimeSlotDto(slotStart, slotEnd, isAvailable));
+            var overlapping = existingBookings.FirstOrDefault(b => b.OverlapsWith(slotStart, slotEnd));
+            slots.Add(overlapping is null
+                ? new TimeSlotDto(slotStart, slotEnd, IsAvailable: true, BookingId: null, PlayerCount: null, CombinedHandicap: null)
+                : new TimeSlotDto(slotStart, slotEnd, IsAvailable: false, overlapping.Id, overlapping.PlayerCount, overlapping.CombinedHandicap));
             slotStart = slotEnd;
         }
 
