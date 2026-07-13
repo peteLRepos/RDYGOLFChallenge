@@ -2,6 +2,7 @@ namespace GolfClub.Domain.Enums;
 
 public enum BookingStatus
 {
-    Confirmed,
+    Pending,
+    Ready,
     Cancelled
 }
