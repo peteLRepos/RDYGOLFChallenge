@@ -28,6 +28,7 @@ public class ExceptionHandlingMiddleware
             {
                 NotFoundException => (HttpStatusCode.NotFound, ex.Message),
                 UnauthorizedException => (HttpStatusCode.Unauthorized, ex.Message),
+                ForbiddenException => (HttpStatusCode.Forbidden, ex.Message),
                 // Fallback for callers that don't translate it into a more specific message
                 // themselves (see UserService.RegisterAsync for the usual case).
                 ConflictException => (HttpStatusCode.Conflict, ex.Message),
