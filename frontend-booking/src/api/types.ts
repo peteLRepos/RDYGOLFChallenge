@@ -12,7 +12,18 @@ export interface Resource {
   slotDurationMinutes: number;
   openingTime: string;
   closingTime: string;
+  pricePerPlayer: number | null;
   isActive: boolean;
+}
+
+/** BookingId/PlayerCount/CombinedHandicap are only set when the slot isn't available. */
+export interface TimeSlot {
+  start: string;
+  end: string;
+  isAvailable: boolean;
+  bookingId: string | null;
+  playerCount: number | null;
+  combinedHandicap: number | null;
 }
 
 export interface User {

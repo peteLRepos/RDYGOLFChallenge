@@ -1,5 +1,5 @@
 .page {
-  max-width: 720px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
 }
@@ -11,33 +11,4 @@
 
 .error {
   color: var(--color-danger);
-}
-
-.resource-list {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  gap: 1rem;
-}
-
-.resource-card {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 1rem 1.25rem;
-  background: var(--color-white);
-  box-shadow: var(--shadow-card);
-}
-
-.resource-card h2 {
-  margin: 0.25rem 0;
-  font-size: 1.1rem;
-  color: var(--color-green-900);
-}
-
-.resource-type {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-green-500);
-  font-weight: 600;
 }
