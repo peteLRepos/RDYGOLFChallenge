@@ -4,7 +4,6 @@ public enum ResourceType
 {
     TeeTime,
     DrivingRangeBay,
-    GolfCart,
     LessonSlot,
     Simulator
 }

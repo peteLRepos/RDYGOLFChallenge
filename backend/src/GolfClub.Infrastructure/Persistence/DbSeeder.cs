@@ -12,6 +12,7 @@ public static class DbSeeder
         await context.Database.MigrateAsync();
 
         await SeedResourcesAsync(context);
+        await SeedCartsAsync(context);
         await SeedUsersAsync(context, passwordHasher);
     }
 
@@ -27,13 +28,27 @@ public static class DbSeeder
             new("18-Hole Course", ResourceType.TeeTime, 10, new TimeOnly(7, 0), new TimeOnly(19, 0), pricePerPlayer: 22m),
             new("Driving Range Bay 1", ResourceType.DrivingRangeBay, 60, new TimeOnly(7, 0), new TimeOnly(21, 0)),
             new("Driving Range Bay 2", ResourceType.DrivingRangeBay, 60, new TimeOnly(7, 0), new TimeOnly(21, 0)),
-            new("Golf Cart 1", ResourceType.GolfCart, 240, new TimeOnly(7, 0), new TimeOnly(19, 0)),
-            new("Golf Cart 2", ResourceType.GolfCart, 240, new TimeOnly(7, 0), new TimeOnly(19, 0)),
             new("Lesson with Pro - Alex", ResourceType.LessonSlot, 45, new TimeOnly(9, 0), new TimeOnly(17, 0)),
             new("Simulator Bay", ResourceType.Simulator, 60, new TimeOnly(8, 0), new TimeOnly(22, 0)),
         };
 
         await context.Resources.AddRangeAsync(resources);
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task SeedCartsAsync(GolfClubDbContext context)
+    {
+        if (await context.Carts.AnyAsync())
+            return;
+
+        var carts = new List<Cart>
+        {
+            new("Cart 1"),
+            new("Cart 2"),
+            new("Cart 3"),
+        };
+
+        await context.Carts.AddRangeAsync(carts);
         await context.SaveChangesAsync();
     }
 
