@@ -13,6 +13,7 @@ public class BookingService : IBookingService
     private readonly IResourceRepository _resources;
     private readonly IUserRepository _users;
     private readonly ICartService _cartService;
+    private readonly IWaitlistRepository _waitlist;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDateTimeProvider _dateTimeProvider;
 
@@ -21,6 +22,7 @@ public class BookingService : IBookingService
         IResourceRepository resources,
         IUserRepository users,
         ICartService cartService,
+        IWaitlistRepository waitlist,
         IUnitOfWork unitOfWork,
         IDateTimeProvider dateTimeProvider)
     {
@@ -28,6 +30,7 @@ public class BookingService : IBookingService
         _resources = resources;
         _users = users;
         _cartService = cartService;
+        _waitlist = waitlist;
         _unitOfWork = unitOfWork;
         _dateTimeProvider = dateTimeProvider;
     }
@@ -159,7 +162,15 @@ public class BookingService : IBookingService
             ?? throw new NotFoundException($"Booking '{bookingId}' was not found.");
 
         EnsureOwnerOrAdmin(booking, requestingUserId, isAdmin);
+        var resource = await _resources.GetByIdAsync(booking.ResourceId, ct)
+            ?? throw new NotFoundException($"Resource '{booking.ResourceId}' was not found.");
+
         booking.Cancel();
+        // Only the booking's own slot start is re-offered to the queue — a cancelled multi-hour
+        // simulator booking frees every hour it spanned, but re-checking just the first hour keeps
+        // this from having to walk the whole range (a documented simplification, see README).
+        // currentBooking: null — the just-cancelled booking no longer occupies the slot.
+        await FulfillWaitlistAsync(resource, booking.Start, currentBooking: null, ct);
         await _unitOfWork.SaveChangesAsync(ct);
     }
 
@@ -242,6 +253,9 @@ public class BookingService : IBookingService
             ?? throw new NotFoundException($"Resource '{booking.ResourceId}' was not found.");
 
         booking.RemovePlayer(targetUserId, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
+        // currentBooking: booking — still live, just with one fewer player, so the freed seat is
+        // offered on this same tracked instance.
+        await FulfillWaitlistAsync(resource, booking.Start, currentBooking: booking, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 
         return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
@@ -323,6 +337,61 @@ public class BookingService : IBookingService
         ids.AddRange(allResources.Where(r => r.LinkedResourceId == resource.Id).Select(r => r.Id));
 
         return ids.Distinct().ToList();
+    }
+
+    /// <summary>
+    /// After a booking is cancelled or a player is removed, offers the freed capacity to whoever's
+    /// queued for this resource+slot, oldest first, up to however many seats are actually open —
+    /// same reuse of AddPlayer/the Booking constructor as a normal join, just triggered by the
+    /// system instead of a user click. An entry that fails (e.g. would push the combined handicap
+    /// over the cap) is left in the queue rather than dropped, in case a later opening fits them.
+    /// </summary>
+    /// <param name="currentBooking">
+    /// The still-live booking occupying this slot, if any — null when the whole booking was just
+    /// cancelled. Deliberately the caller's own tracked instance rather than a fresh query: a
+    /// separately (no-tracking) re-fetched copy wouldn't see the caller's not-yet-saved
+    /// RemovePlayer/Cancel change, and any AddPlayer made on it here would be silently lost since
+    /// it's a different object than the one the DbContext actually persists.
+    /// </param>
+    private async Task FulfillWaitlistAsync(Resource resource, DateTime slotStart, Booking? currentBooking, CancellationToken ct)
+    {
+        var entries = await _waitlist.GetByResourceAndSlotAsync(resource.Id, slotStart, ct);
+        if (entries.Count == 0)
+            return;
+
+        var slotEnd = slotStart.AddMinutes(resource.SlotDurationMinutes);
+        var booking = currentBooking;
+
+        foreach (var entry in entries)
+        {
+            var user = await _users.GetByIdAsync(entry.UserId, ct);
+            if (user is null)
+            {
+                _waitlist.Remove(entry);
+                continue;
+            }
+
+            try
+            {
+                if (booking is null)
+                {
+                    booking = new Booking(
+                        resource.Id, entry.UserId, slotStart, slotEnd,
+                        PaymentMethod.Cash, user.Handicap, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
+                    await _bookings.AddAsync(booking, ct);
+                }
+                else
+                {
+                    booking.AddPlayer(entry.UserId, user.Handicap, PaymentMethod.Cash, addedByUserId: entry.UserId, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
+                }
+
+                _waitlist.Remove(entry);
+            }
+            catch (DomainException)
+            {
+                // Doesn't fit this opening (full, or over the handicap cap) — stays queued for next time.
+            }
+        }
     }
 
     private static void EnsureOwnerOrAdmin(Booking booking, Guid requestingUserId, bool isAdmin)
