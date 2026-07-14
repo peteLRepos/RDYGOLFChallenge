@@ -35,6 +35,7 @@ public class Booking
 
     public IReadOnlyCollection<BookingPlayer> Players => _players.AsReadOnly();
     public int PlayerCount => _players.Count;
+    public bool IsFull => PlayerCount >= MaxPlayers;
     public int CombinedHandicap => _players.Sum(p => p.Handicap);
 
     // Null when there's no cart — the window a cart is held for, independent of Start/End (see

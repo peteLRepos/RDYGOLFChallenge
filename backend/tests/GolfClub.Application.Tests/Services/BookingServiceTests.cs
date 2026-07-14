@@ -21,7 +21,7 @@ public class BookingServiceTests
     private readonly Mock<IResourceRepository> _resources = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<ICartService> _cartService = new();
-    private readonly Mock<IWaitlistRepository> _waitlist = new();
+    private readonly Mock<IWaitlistService> _waitlistService = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<IDateTimeProvider> _dateTimeProvider = new();
     private readonly BookingService _sut;
@@ -38,9 +38,12 @@ public class BookingServiceTests
         // CancelAsync/RemovePlayerAsync now look up the booking's resource to try refilling the
         // waitlist — a resource that satisfies that lookup, not tied to any specific test's booking.
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(CreateResource());
-        // No one queued by default — individual waitlist-fulfillment tests override this.
-        _waitlist.Setup(w => w.GetByResourceAndSlotAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _sut = new BookingService(_bookings.Object, _resources.Object, _users.Object, _cartService.Object, _waitlist.Object, _unitOfWork.Object, _dateTimeProvider.Object);
+        // Waitlist fulfillment logic itself now lives in WaitlistService, not here — this just
+        // stubs the call so CancelAsync/RemovePlayerAsync tests don't hit an unconfigured mock.
+        _waitlistService
+            .Setup(w => w.FulfillAsync(It.IsAny<Resource>(), It.IsAny<DateTime>(), It.IsAny<Booking?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _sut = new BookingService(_bookings.Object, _resources.Object, _users.Object, _cartService.Object, _waitlistService.Object, _unitOfWork.Object, _dateTimeProvider.Object);
     }
 
     private static Resource CreateResource(bool isActive = true, decimal? pricePerPlayer = null)
