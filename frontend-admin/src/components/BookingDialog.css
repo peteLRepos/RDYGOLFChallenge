@@ -60,6 +60,22 @@
   text-align: center;
 }
 
+.duration-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  margin-bottom: 1rem;
+}
+
+.duration-option select {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+}
+
 .booking-dialog-footer {
   display: flex;
   flex-direction: column;
