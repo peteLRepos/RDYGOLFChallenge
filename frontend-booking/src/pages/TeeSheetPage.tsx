@@ -14,6 +14,7 @@ export function TeeSheetPage() {
   const { resourceId } = useParams<{ resourceId: string }>();
   const { isAuthenticated } = useAuth();
   const [resource, setResource] = useState<Resource | null>(null);
+  const [isResourceLoading, setIsResourceLoading] = useState(true);
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [date, setDate] = useState(startOfToday());
   const [error, setError] = useState<string | null>(null);
@@ -22,10 +23,12 @@ export function TeeSheetPage() {
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
 
   useEffect(() => {
+    setIsResourceLoading(true);
     api
       .get<Resource[]>('/api/resources')
       .then((all) => setResource(all.find((r) => r.id === resourceId) ?? null))
-      .catch(() => setResource(null));
+      .catch(() => setResource(null))
+      .finally(() => setIsResourceLoading(false));
   }, [resourceId]);
 
   const loadSlots = useCallback(() => {
@@ -59,50 +62,59 @@ export function TeeSheetPage() {
       <p className="subtitle">
         <Link to="/">&larr; All courses</Link>
       </p>
-      <h1 className="tee-sheet-title">{resource?.name ?? '…'}</h1>
+      <h1 className="tee-sheet-title">{resource?.name ?? (isResourceLoading ? '…' : 'Course not found')}</h1>
 
-      <DateNav date={date} onChange={setDate} />
+      {!isResourceLoading && !resource && (
+        <p className="error">This course doesn't exist or is no longer available.</p>
+      )}
 
-      {isLoading && <p>Loading tee sheet…</p>}
-      {error && <p className="error">{error}</p>}
+      {resource && (
+        <>
+          <DateNav date={date} onChange={setDate} />
 
-      <ul className="slot-grid">
-        {slots.map((slot) => {
-          const isFull = !slot.isAvailable && (slot.playerCount ?? 0) >= MAX_PLAYERS;
+          {isLoading && <p>Loading tee sheet…</p>}
+          {error && <p className="error">{error}</p>}
+          {!isLoading && !error && slots.length === 0 && <p>No time slots are configured for this course.</p>}
 
-          return (
-            <li key={slot.start}>
-              <button
-                type="button"
-                className={
-                  'slot' + (slot.isAvailable ? ' slot-open' : isFull ? ' slot-full' : ' slot-joinable')
-                }
-                disabled={isFull}
-                onClick={() => handleSlotClick(slot)}
-              >
-                <span className="slot-time">{formatTime(slot.start)}</span>
-                {!slot.isAvailable && (
-                  <span className="slot-status">
-                    Booked {slot.playerCount}/{MAX_PLAYERS}
-                    {slot.combinedHandicap != null && ` · hcp ${slot.combinedHandicap}`}
-                  </span>
-                )}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+          <ul className="slot-grid">
+            {slots.map((slot) => {
+              const isFull = !slot.isAvailable && (slot.playerCount ?? 0) >= MAX_PLAYERS;
 
-      {selectedSlot && resource && (
-        <BookingDialog
-          resource={resource}
-          slot={selectedSlot}
-          onClose={() => setSelectedSlot(null)}
-          onBooked={() => {
-            setSelectedSlot(null);
-            loadSlots();
-          }}
-        />
+              return (
+                <li key={slot.start}>
+                  <button
+                    type="button"
+                    className={
+                      'slot' + (slot.isAvailable ? ' slot-open' : isFull ? ' slot-full' : ' slot-joinable')
+                    }
+                    disabled={isFull}
+                    onClick={() => handleSlotClick(slot)}
+                  >
+                    <span className="slot-time">{formatTime(slot.start)}</span>
+                    {!slot.isAvailable && (
+                      <span className="slot-status">
+                        Booked {slot.playerCount}/{MAX_PLAYERS}
+                        {slot.combinedHandicap != null && ` · hcp ${slot.combinedHandicap}`}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          {selectedSlot && (
+            <BookingDialog
+              resource={resource}
+              slot={selectedSlot}
+              onClose={() => setSelectedSlot(null)}
+              onBooked={() => {
+                setSelectedSlot(null);
+                loadSlots();
+              }}
+            />
+          )}
+        </>
       )}
 
       {authMode && (

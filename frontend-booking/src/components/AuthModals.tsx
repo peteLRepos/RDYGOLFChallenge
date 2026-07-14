@@ -153,7 +153,7 @@ function RegisterForm({ onModeChange, onClose }: FormProps) {
 function ForgotPasswordForm({ onModeChange, onClose }: FormProps) {
   const { forgotPassword } = useAuth();
   const [email, setEmail] = useState('');
-  const [newPassword, setNewPassword] = useState<string | null>(null);
+  const [result, setResult] = useState<{ accountFound: boolean; newPassword: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -162,8 +162,7 @@ function ForgotPasswordForm({ onModeChange, onClose }: FormProps) {
     setError(null);
     setIsSubmitting(true);
     try {
-      const password = await forgotPassword(email);
-      setNewPassword(password);
+      setResult(await forgotPassword(email));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not reset password.');
     } finally {
@@ -173,10 +172,16 @@ function ForgotPasswordForm({ onModeChange, onClose }: FormProps) {
 
   return (
     <Modal title="Forgot password" onClose={onClose}>
-      {newPassword ? (
+      {result ? (
         <>
           <p className="modal-success">
-            Your new password is: <strong>{newPassword}</strong>
+            {result.accountFound ? (
+              <>
+                Your new password is: <strong>{result.newPassword}</strong>
+              </>
+            ) : (
+              "If an account with that email exists, its password has been reset."
+            )}
           </p>
           <p className="modal-switch">
             <button type="button" onClick={() => onModeChange('login')}>

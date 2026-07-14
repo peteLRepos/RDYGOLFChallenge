@@ -58,7 +58,8 @@ export interface ForgotPasswordRequest {
 }
 
 export interface ForgotPasswordResponse {
-  newPassword: string;
+  accountFound: boolean;
+  newPassword: string | null;
 }
 
 export type PaymentMethod = 'Cash' | 'Card' | 'SerialTicket';

@@ -23,6 +23,7 @@ export function CoursesPage() {
 
       {isLoading && <p>Loading resources…</p>}
       {error && <p className="error">{error}</p>}
+      {!isLoading && !error && resources.length === 0 && <p>No resources have been created yet.</p>}
 
       <ul className="course-grid">
         {resources.map((resource) => (

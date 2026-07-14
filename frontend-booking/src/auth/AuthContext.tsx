@@ -26,7 +26,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (request: LoginRequest) => Promise<void>;
   register: (request: RegisterRequest) => Promise<void>;
-  forgotPassword: (email: string) => Promise<string>;
+  forgotPassword: (email: string) => Promise<ForgotPasswordResponse>;
   logout: () => void;
 }
 
@@ -51,10 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applyAuth(response);
   };
 
-  const forgotPassword = async (email: string) => {
-    const response = await api.post<ForgotPasswordResponse>('/api/users/forgot-password', { email });
-    return response.newPassword;
-  };
+  const forgotPassword = (email: string) =>
+    api.post<ForgotPasswordResponse>('/api/users/forgot-password', { email });
 
   const logout = () => {
     clearToken();

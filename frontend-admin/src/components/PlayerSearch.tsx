@@ -52,6 +52,9 @@ export function PlayerSearch({ excludeUserIds, onSelect, onCancel }: PlayerSearc
           ))}
         </ul>
       )}
+      {results.length === 0 && query.trim().length >= MIN_QUERY_LENGTH && (
+        <p className="player-search-empty">No players found.</p>
+      )}
       <button type="button" className="player-search-cancel" onClick={onCancel}>
         Cancel
       </button>
