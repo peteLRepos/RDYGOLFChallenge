@@ -1,7 +1,6 @@
 export type ResourceType =
   | 'TeeTime'
   | 'DrivingRangeBay'
-  | 'GolfCart'
   | 'LessonSlot'
   | 'Simulator';
 
@@ -96,6 +95,8 @@ export interface Booking {
   players: BookingPlayer[];
   totalPrice: number;
   createdAt: string;
+  cartId: string | null;
+  cartName: string | null;
 }
 
 export interface PlayerSelection {
@@ -108,6 +109,11 @@ export interface CreateBookingRequest {
   start: string;
   end: string;
   players: PlayerSelection[];
+  wantsCart?: boolean;
+}
+
+export interface CartAvailability {
+  isAvailable: boolean;
 }
 
 export interface AddPlayerRequest {
