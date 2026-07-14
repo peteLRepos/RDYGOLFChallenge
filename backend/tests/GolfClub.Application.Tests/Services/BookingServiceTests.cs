@@ -21,6 +21,7 @@ public class BookingServiceTests
     private readonly Mock<IResourceRepository> _resources = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<ICartService> _cartService = new();
+    private readonly Mock<IWaitlistRepository> _waitlist = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<IDateTimeProvider> _dateTimeProvider = new();
     private readonly BookingService _sut;
@@ -34,7 +35,12 @@ public class BookingServiceTests
         // GetBlockingResourceIdsAsync always calls this to resolve linked/linking resources — empty
         // by default since most tests don't involve resource linking (see the lesson/6-hole tests).
         _resources.Setup(r => r.GetAllAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _sut = new BookingService(_bookings.Object, _resources.Object, _users.Object, _cartService.Object, _unitOfWork.Object, _dateTimeProvider.Object);
+        // CancelAsync/RemovePlayerAsync now look up the booking's resource to try refilling the
+        // waitlist — a resource that satisfies that lookup, not tied to any specific test's booking.
+        _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(CreateResource());
+        // No one queued by default — individual waitlist-fulfillment tests override this.
+        _waitlist.Setup(w => w.GetByResourceAndSlotAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        _sut = new BookingService(_bookings.Object, _resources.Object, _users.Object, _cartService.Object, _waitlist.Object, _unitOfWork.Object, _dateTimeProvider.Object);
     }
 
     private static Resource CreateResource(bool isActive = true, decimal? pricePerPlayer = null)
