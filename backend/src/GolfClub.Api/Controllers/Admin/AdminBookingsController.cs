@@ -27,6 +27,13 @@ public class AdminBookingsController : ControllerBase
         return Ok(bookings);
     }
 
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateBookingRequest request, CancellationToken ct)
+    {
+        var booking = await _bookingService.AdminCreateAsync(request, ct);
+        return StatusCode(StatusCodes.Status201Created, booking);
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken ct)
     {

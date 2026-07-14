@@ -3,9 +3,10 @@ import { Link, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type { Booking, Resource, UpdateResourceRequest } from '../api/types';
 import { DateNav } from '../components/DateNav';
+import { BookingDialog } from '../components/BookingDialog';
 import { CHECK_IN_WINDOW_MINUTES } from '../constants';
 import { formatTime, startOfToday } from '../utils/date';
-import { buildSlotsForDate } from '../utils/slots';
+import { buildSlotsForDate, type AdminSlot } from '../utils/slots';
 import './TeeSheetPage.css';
 
 export function TeeSheetPage() {
@@ -19,6 +20,7 @@ export function TeeSheetPage() {
   const [priceInput, setPriceInput] = useState('');
   const [isSavingPrice, setIsSavingPrice] = useState(false);
   const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<AdminSlot | null>(null);
 
   const load = useCallback(() => {
     if (!resourceId) return;
@@ -119,37 +121,56 @@ export function TeeSheetPage() {
             new Date() < slot.end;
 
           return (
-            <li
-              key={slot.start.toISOString()}
-              className={'slot' + (booking ? (isReady ? ' slot-ready' : ' slot-booked') : ' slot-open')}
-            >
-              <span className="slot-time">{formatTime(slot.start.toISOString())}</span>
-              {booking && (
-                <>
-                  <span className="slot-customer">{booking.customerName}</span>
-                  <span className="slot-status">
-                    {booking.playerCount}/4 · hcp {booking.combinedHandicap}
-                  </span>
-                  <span className={'paid-badge' + (booking.isPaid ? ' paid' : ' unpaid')}>
-                    {booking.isPaid ? 'PAID' : 'NOT PAID'}
-                  </span>
-                  {canCheckIn && (
-                    <button
-                      type="button"
-                      className="slot-checkin"
-                      disabled={pendingBookingId === booking.id}
-                      onClick={() => checkIn(booking.id)}
-                    >
-                      Check in
-                    </button>
-                  )}
-                </>
-              )}
-              {!booking && <span className="slot-open-label">Open</span>}
+            <li key={slot.start.toISOString()}>
+              <button
+                type="button"
+                className={'slot' + (booking ? (isReady ? ' slot-ready' : ' slot-booked') : ' slot-open')}
+                disabled={isReady}
+                onClick={() => setSelectedSlot(slot)}
+              >
+                <span className="slot-time">{formatTime(slot.start.toISOString())}</span>
+                {booking && (
+                  <>
+                    <span className="slot-customer">{booking.customerName}</span>
+                    <span className="slot-status">
+                      {booking.playerCount}/4 · hcp {booking.combinedHandicap}
+                    </span>
+                    <span className={'paid-badge' + (booking.isPaid ? ' paid' : ' unpaid')}>
+                      {booking.isPaid ? 'PAID' : 'NOT PAID'}
+                    </span>
+                    {canCheckIn && (
+                      <span
+                        className="slot-checkin"
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          checkIn(booking.id);
+                        }}
+                      >
+                        {pendingBookingId === booking.id ? 'Checking in…' : 'Check in'}
+                      </span>
+                    )}
+                  </>
+                )}
+                {!booking && <span className="slot-open-label">Open</span>}
+              </button>
             </li>
           );
         })}
       </ul>
+
+      {selectedSlot && resource && (
+        <BookingDialog
+          resource={resource}
+          slot={selectedSlot}
+          onClose={() => setSelectedSlot(null)}
+          onChanged={() => {
+            setSelectedSlot(null);
+            load();
+          }}
+        />
+      )}
     </main>
   );
 }

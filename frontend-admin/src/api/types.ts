@@ -54,6 +54,24 @@ export interface Booking {
   createdAt: string;
 }
 
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  handicap: number;
+}
+
+export interface PlayerSelection {
+  userId: string;
+  paymentMethod: PaymentMethod;
+}
+
+export interface CreateBookingRequest {
+  resourceId: string;
+  start: string;
+  end: string;
+  players: PlayerSelection[];
+}
+
 export interface User {
   id: string;
   name: string;
