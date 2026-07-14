@@ -1,32 +1,15 @@
-# React + TypeScript + Vite
+# frontend-admin
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The admin panel (React + TypeScript + Vite). See the [repo root README](../README.md) for what this
+app does, how to run the whole stack, and the project's assumptions/trade-offs.
 
-Currently, two official plugins are available:
+## Local dev (outside Docker)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Requires the API running separately (see the root README) and `VITE_API_URL` in `.env.local`
+pointing at it (defaults to `http://localhost:5000`, matching the Docker Compose setup). Log in with
+the seeded admin account (`admin@testAdmin.com` / `Admin`).

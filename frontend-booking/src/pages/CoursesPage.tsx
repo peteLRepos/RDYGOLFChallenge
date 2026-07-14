@@ -26,6 +26,7 @@ export function CoursesPage() {
 
       {isLoading && <p>Loading courses…</p>}
       {error && <p className="error">{error}</p>}
+      {!isLoading && !error && resources.length === 0 && <p>No courses are available right now.</p>}
 
       <ul className="course-grid">
         {resources.map((resource) => (
