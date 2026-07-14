@@ -19,6 +19,7 @@ public class BookingRepository : IBookingRepository
             .Include(b => b.Resource)
             .Include(b => b.Booker)
             .Include(b => b.Players).ThenInclude(p => p.User)
+            .Include(b => b.Cart)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
 
     public async Task<List<Booking>> GetByResourceAndDateAsync(Guid resourceId, DateOnly date, CancellationToken ct = default)
@@ -46,6 +47,7 @@ public class BookingRepository : IBookingRepository
             .Include(b => b.Resource)
             .Include(b => b.Booker)
             .Include(b => b.Players).ThenInclude(p => p.User)
+            .Include(b => b.Cart)
             .OrderByDescending(b => b.Start)
             .ToListAsync(ct);
 
@@ -55,6 +57,7 @@ public class BookingRepository : IBookingRepository
             .Include(b => b.Resource)
             .Include(b => b.Booker)
             .Include(b => b.Players).ThenInclude(p => p.User)
+            .Include(b => b.Cart)
             .Where(b => b.BookerId == userId || b.Players.Any(p => p.UserId == userId))
             .OrderByDescending(b => b.Start)
             .ToListAsync(ct);
@@ -70,4 +73,17 @@ public class BookingRepository : IBookingRepository
 
     public async Task AddAsync(Booking booking, CancellationToken ct = default) =>
         await _context.Bookings.AddAsync(booking, ct);
+
+    public async Task<List<Guid>> GetReservedCartIdsOverlappingAsync(DateTime start, DateTime end, CancellationToken ct = default) =>
+        await _context.Bookings
+            .AsNoTracking()
+            .Where(b => b.CartId != null
+                        && b.Status != BookingStatus.Cancelled
+                        && b.Start < end
+                        && start < b.Start.AddHours(Cart.ReservationHours))
+            .Select(b => b.CartId!.Value)
+            .ToListAsync(ct);
+
+    public async Task<bool> HasCartReferenceAsync(Guid cartId, CancellationToken ct = default) =>
+        await _context.Bookings.AnyAsync(b => b.CartId == cartId, ct);
 }

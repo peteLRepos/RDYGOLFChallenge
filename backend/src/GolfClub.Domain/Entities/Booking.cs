@@ -30,10 +30,16 @@ public class Booking
     public BookingStatus Status { get; private set; }
     public decimal TotalPrice { get; private set; }
     public DateTime CreatedAt { get; private set; }
+    public Guid? CartId { get; private set; }
+    public Cart? Cart { get; private set; }
 
     public IReadOnlyCollection<BookingPlayer> Players => _players.AsReadOnly();
     public int PlayerCount => _players.Count;
     public int CombinedHandicap => _players.Sum(p => p.Handicap);
+
+    // Null when there's no cart — the window a cart is held for, independent of Start/End (see
+    // Cart.ReservationHours).
+    public DateTime? CartReservationEnd => CartId.HasValue ? Start.AddHours(Cart.ReservationHours) : null;
 
     private Booking()
     {
@@ -127,7 +133,7 @@ public class Booking
         ResourceId = resourceId;
         Start = start;
         End = end;
-        TotalPrice = pricePerPlayer * PlayerCount;
+        Reprice(pricePerPlayer);
     }
 
     /// <summary>
@@ -174,11 +180,40 @@ public class Booking
         Reprice(pricePerPlayer);
     }
 
-    // Shared by AddPlayer/RemovePlayer: both change the roster, so both must recompute the
-    // per-player-driven total and paid status the same way.
+    /// <summary>
+    /// Attaches a cart — max one per booking. <paramref name="cartId"/> must already be confirmed
+    /// available by the caller (see BookingService/CartService); this method only enforces the
+    /// one-cart-per-booking rule and recomputes the price, the same way AddPlayer/RemovePlayer do.
+    /// </summary>
+    /// <param name="pricePerPlayer">The resource's current price (0 if unpriced) — see the constructor for why TotalPrice is recomputed and stored.</param>
+    public void AddCart(Guid cartId, decimal pricePerPlayer)
+    {
+        EnsurePending("changed");
+        if (cartId == Guid.Empty)
+            throw new DomainException("Cart is required.");
+        if (CartId.HasValue)
+            throw new DomainException("This booking already has a cart.");
+
+        CartId = cartId;
+        Reprice(pricePerPlayer);
+    }
+
+    /// <param name="pricePerPlayer">The resource's current price (0 if unpriced) — see the constructor for why TotalPrice is recomputed and stored.</param>
+    public void RemoveCart(decimal pricePerPlayer)
+    {
+        EnsurePending("changed");
+        if (!CartId.HasValue)
+            throw new DomainException("This booking doesn't have a cart.");
+
+        CartId = null;
+        Reprice(pricePerPlayer);
+    }
+
+    // Shared by AddPlayer/RemovePlayer/AddCart/RemoveCart/Reschedule: all change something the
+    // total price or paid status depends on, so they must all recompute both the same way.
     private void Reprice(decimal pricePerPlayer)
     {
-        TotalPrice = pricePerPlayer * PlayerCount;
+        TotalPrice = pricePerPlayer * PlayerCount + (CartId.HasValue ? Cart.FixedPrice : 0m);
         RecomputeIsPaid();
     }
 

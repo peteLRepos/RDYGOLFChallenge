@@ -46,4 +46,10 @@ public interface IBookingService
     /// for an admin. See <see cref="Domain.Entities.Booking.RemovePlayer"/> for the exact rule.
     /// </summary>
     Task<BookingDto> RemovePlayerAsync(Guid bookingId, Guid targetUserId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Attaches a cart to an existing pending booking — booker or admin only, same as Cancel/CheckIn.</summary>
+    Task<BookingDto> AddCartAsync(Guid bookingId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default);
+
+    /// <summary>Detaches a booking's cart — booker or admin only, same as Cancel/CheckIn.</summary>
+    Task<BookingDto> RemoveCartAsync(Guid bookingId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default);
 }

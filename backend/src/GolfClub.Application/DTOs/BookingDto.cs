@@ -17,7 +17,9 @@ public record BookingDto(
     int CombinedHandicap,
     List<BookingPlayerDto> Players,
     decimal TotalPrice,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    Guid? CartId,
+    string? CartName);
 
 public record BookingPlayerDto(
     Guid UserId,
@@ -30,11 +32,14 @@ public record BookingPlayerDto(
 /// The full player list for the booking, in slot order. The first entry must be the requesting
 /// user (they're always their own booking's first player) — enforced in BookingService, not here.
 /// </param>
+/// <param name="WantsCart">If true, a free cart is attached at creation, or the whole request fails
+/// with "No carts available." if none are free for the booking's 2-hour cart window.</param>
 public record CreateBookingRequest(
     Guid ResourceId,
     DateTime Start,
     DateTime End,
-    List<PlayerSelectionDto> Players);
+    List<PlayerSelectionDto> Players,
+    bool WantsCart = false);
 
 public record PlayerSelectionDto(Guid UserId, PaymentMethod PaymentMethod);
 

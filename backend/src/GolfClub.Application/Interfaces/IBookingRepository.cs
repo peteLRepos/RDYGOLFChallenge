@@ -13,4 +13,12 @@ public interface IBookingRepository
     Task<List<Booking>> GetForUserAsync(Guid userId, CancellationToken ct = default);
     Task<bool> HasOverlapAsync(Guid resourceId, DateTime start, DateTime end, Guid? excludeBookingId = null, CancellationToken ct = default);
     Task AddAsync(Booking booking, CancellationToken ct = default);
+
+    /// <summary>Cart ids currently held by an active (non-cancelled) booking whose 2-hour cart
+    /// reservation window overlaps [start, end) — used to work out which carts are free.</summary>
+    Task<List<Guid>> GetReservedCartIdsOverlappingAsync(DateTime start, DateTime end, CancellationToken ct = default);
+
+    /// <summary>Whether any booking (regardless of status) still references this cart — see
+    /// CartService.DeleteAsync, which refuses to delete a cart that's ever been used.</summary>
+    Task<bool> HasCartReferenceAsync(Guid cartId, CancellationToken ct = default);
 }

@@ -77,5 +77,13 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Navigation(b => b.Players)
             .HasField("_players")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        // Restrict, not Cascade or SetNull: CartService.DeleteAsync refuses to delete a cart that
+        // any booking (even a cancelled one) still references — this is the DB-level backstop for
+        // that same rule, not something expected to fire in practice.
+        builder.HasOne(b => b.Cart)
+            .WithMany()
+            .HasForeignKey(b => b.CartId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -20,6 +20,7 @@ public class BookingServiceTests
     private readonly Mock<IBookingRepository> _bookings = new();
     private readonly Mock<IResourceRepository> _resources = new();
     private readonly Mock<IUserRepository> _users = new();
+    private readonly Mock<ICartService> _cartService = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<IDateTimeProvider> _dateTimeProvider = new();
     private readonly BookingService _sut;
@@ -30,7 +31,7 @@ public class BookingServiceTests
         // Default booker for CreateAsync's lookup — individual tests override with a specific
         // user/handicap only when that matters to what they're asserting.
         _users.Setup(u => u.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(CreateUser());
-        _sut = new BookingService(_bookings.Object, _resources.Object, _users.Object, _unitOfWork.Object, _dateTimeProvider.Object);
+        _sut = new BookingService(_bookings.Object, _resources.Object, _users.Object, _cartService.Object, _unitOfWork.Object, _dateTimeProvider.Object);
     }
 
     private static Resource CreateResource(bool isActive = true, decimal? pricePerPlayer = null)
