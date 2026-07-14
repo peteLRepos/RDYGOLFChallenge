@@ -22,10 +22,11 @@ public class BookingRepository : IBookingRepository
             .Include(b => b.Cart)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
 
-    public async Task<List<Booking>> GetByResourceAndDateAsync(Guid resourceId, DateOnly date, CancellationToken ct = default)
+    public async Task<List<Booking>> GetByResourceAndDateAsync(IEnumerable<Guid> resourceIds, DateOnly date, CancellationToken ct = default)
     {
         var dayStart = date.ToDateTime(TimeOnly.MinValue);
         var dayEnd = date.ToDateTime(TimeOnly.MaxValue);
+        var ids = resourceIds.ToList();
 
         return await _context.Bookings
             .AsNoTracking()
@@ -33,7 +34,7 @@ public class BookingRepository : IBookingRepository
             // combined handicap — Players is otherwise not loaded, and PlayerCount/CombinedHandicap
             // read off it, not a persisted column.
             .Include(b => b.Players)
-            .Where(b => b.ResourceId == resourceId
+            .Where(b => ids.Contains(b.ResourceId)
                         && b.Status != BookingStatus.Cancelled
                         && b.Start < dayEnd
                         && b.End > dayStart)
@@ -62,14 +63,17 @@ public class BookingRepository : IBookingRepository
             .OrderByDescending(b => b.Start)
             .ToListAsync(ct);
 
-    public async Task<bool> HasOverlapAsync(Guid resourceId, DateTime start, DateTime end, Guid? excludeBookingId = null, CancellationToken ct = default) =>
-        await _context.Bookings.AnyAsync(
-            b => b.ResourceId == resourceId
+    public async Task<bool> HasOverlapAsync(IEnumerable<Guid> resourceIds, DateTime start, DateTime end, Guid? excludeBookingId = null, CancellationToken ct = default)
+    {
+        var ids = resourceIds.ToList();
+        return await _context.Bookings.AnyAsync(
+            b => ids.Contains(b.ResourceId)
                  && b.Status != BookingStatus.Cancelled
                  && b.Start < end
                  && start < b.End
                  && (excludeBookingId == null || b.Id != excludeBookingId),
             ct);
+    }
 
     public async Task AddAsync(Booking booking, CancellationToken ct = default) =>
         await _context.Bookings.AddAsync(booking, ct);

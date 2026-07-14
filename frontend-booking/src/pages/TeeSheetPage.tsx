@@ -10,6 +10,14 @@ import { MAX_PLAYERS } from '../constants';
 import { formatTime, startOfToday, toDateKey } from '../utils/date';
 import './TeeSheetPage.css';
 
+// A cross-resource block (e.g. a lesson holding this hour of the 6-Hole Course) has no bookingId —
+// there's no booking on *this* resource to join, so it's just unavailable, same as a full one.
+function isSlotClickable(slot: TimeSlot): boolean {
+  if (slot.isAvailable) return true;
+  if (slot.bookingId === null) return false;
+  return (slot.playerCount ?? 0) < MAX_PLAYERS;
+}
+
 export function TeeSheetPage() {
   const { resourceId } = useParams<{ resourceId: string }>();
   const { isAuthenticated } = useAuth();
@@ -47,8 +55,7 @@ export function TeeSheetPage() {
   }, [loadSlots]);
 
   const handleSlotClick = (slot: TimeSlot) => {
-    const isFull = !slot.isAvailable && (slot.playerCount ?? 0) >= MAX_PLAYERS;
-    if (isFull) return;
+    if (!isSlotClickable(slot)) return;
 
     if (!isAuthenticated) {
       setAuthMode('login');
@@ -78,23 +85,29 @@ export function TeeSheetPage() {
 
           <ul className="slot-grid">
             {slots.map((slot) => {
-              const isFull = !slot.isAvailable && (slot.playerCount ?? 0) >= MAX_PLAYERS;
+              const clickable = isSlotClickable(slot);
 
               return (
                 <li key={slot.start}>
                   <button
                     type="button"
                     className={
-                      'slot' + (slot.isAvailable ? ' slot-open' : isFull ? ' slot-full' : ' slot-joinable')
+                      'slot' + (slot.isAvailable ? ' slot-open' : clickable ? ' slot-joinable' : ' slot-full')
                     }
-                    disabled={isFull}
+                    disabled={!clickable}
                     onClick={() => handleSlotClick(slot)}
                   >
                     <span className="slot-time">{formatTime(slot.start)}</span>
                     {!slot.isAvailable && (
                       <span className="slot-status">
-                        Booked {slot.playerCount}/{MAX_PLAYERS}
-                        {slot.combinedHandicap != null && ` · hcp ${slot.combinedHandicap}`}
+                        {slot.bookingId === null ? (
+                          'Unavailable'
+                        ) : (
+                          <>
+                            Booked {slot.playerCount}/{MAX_PLAYERS}
+                            {slot.combinedHandicap != null && ` · hcp ${slot.combinedHandicap}`}
+                          </>
+                        )}
                       </span>
                     )}
                   </button>
