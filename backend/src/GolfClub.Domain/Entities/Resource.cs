@@ -5,6 +5,11 @@ namespace GolfClub.Domain.Entities;
 
 public class Resource
 {
+    // Unlike every other resource type, a Simulator booking isn't locked to exactly one generated
+    // grid slot — a player can book a multi-hour session, within these bounds.
+    public const int MinSimulatorBookingHours = 1;
+    public const int MaxSimulatorBookingHours = 5;
+
     public Guid Id { get; private set; }
     public string Name { get; private set; } = null!;
     public ResourceType Type { get; private set; }
@@ -74,6 +79,26 @@ public class Resource
         var startTime = TimeOnly.FromDateTime(start);
         var endTime = TimeOnly.FromDateTime(end);
         return startTime >= OpeningTime && endTime <= ClosingTime;
+    }
+
+    /// <summary>
+    /// Every other resource type is booked in exactly one of its own generated grid slots, so
+    /// there's nothing to validate beyond the overlap/operating-hours checks already run. A
+    /// Simulator booking's length is up to the player — this enforces the 1-5 whole-hour bounds.
+    /// </summary>
+    public void ValidateBookingDuration(DateTime start, DateTime end)
+    {
+        if (Type != ResourceType.Simulator)
+            return;
+
+        var duration = end - start;
+        if (duration.Ticks % TimeSpan.TicksPerHour != 0
+            || duration.TotalHours < MinSimulatorBookingHours
+            || duration.TotalHours > MaxSimulatorBookingHours)
+        {
+            throw new DomainException(
+                $"A simulator booking must be a whole number of hours, between {MinSimulatorBookingHours} and {MaxSimulatorBookingHours}.");
+        }
     }
 
     private static void ValidateFields(

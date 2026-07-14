@@ -34,7 +34,13 @@ public static class DbSeeder
             // hour on the 6-Hole Course, and vice versa — see BookingService's bidirectional
             // overlap check.
             new("Lesson with Pro - Alex", ResourceType.LessonSlot, 60, new TimeOnly(9, 0), new TimeOnly(17, 0), linkedResourceId: sixHoleCourse.Id),
-            new("Simulator Bay", ResourceType.Simulator, 60, new TimeOnly(8, 0), new TimeOnly(22, 0)),
+            // Three identical, independently-bookable simulator bays — grid slots are 1 hour wide,
+            // but a single booking can span 1-5 of them (see BookingService's Simulator duration
+            // check). Flat per-player price regardless of duration, same model as every other
+            // priced resource.
+            new("Simulator 1", ResourceType.Simulator, 60, new TimeOnly(8, 0), new TimeOnly(22, 0), pricePerPlayer: 20m),
+            new("Simulator 2", ResourceType.Simulator, 60, new TimeOnly(8, 0), new TimeOnly(22, 0), pricePerPlayer: 20m),
+            new("Simulator 3", ResourceType.Simulator, 60, new TimeOnly(8, 0), new TimeOnly(22, 0), pricePerPlayer: 20m),
         };
 
         await context.Resources.AddRangeAsync(resources);
