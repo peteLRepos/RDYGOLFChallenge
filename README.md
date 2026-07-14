@@ -2,8 +2,8 @@
 
 A small public-facing booking system for a golf club: members/guests can browse bookable resources
 (tee times, driving range bays, lesson slots, simulators), book a time slot with up to four named
-players, join an in-progress booking, and manage their own bookings. Admins manage resources and
-every booking through a separate admin app.
+players, add a golf cart from the club's fleet, join an in-progress booking, and manage their own
+bookings. Admins manage resources, the cart fleet, and every booking through a separate admin app.
 
 ## Stack
 
@@ -38,8 +38,10 @@ This builds and starts four containers:
 
 The API automatically applies EF Core migrations and seeds demo data on first startup — no manual DB
 setup:
-- **Resources**: 6/9/18-hole tee-time courses (10-minute slots, priced), two driving range bays, two
-  golf carts, a lesson slot with a pro, and a simulator bay
+- **Resources**: 6/9/18-hole tee-time courses (10-minute slots, priced), two driving range bays, a
+  lesson slot with a pro, and a simulator bay
+- **Carts**: a 3-cart fleet ("Cart 1"/"Cart 2"/"Cart 3"), managed separately from Resources (see
+  "Using it" below)
 - **Users**: an admin account (`admin@testAdmin.com` / `Admin`) and two demo members
   (`alice@example.com` / `bob@example.com`, both password `Password123`) — passwords are hashed with
   ASP.NET Core's `PasswordHasher`, never stored plain, even for these seed accounts
@@ -52,19 +54,24 @@ volume if you want a fully fresh database.
 **Booking site** (`booking-web`): browse courses on the home page, pick a day (can't go before
 today), and click a time slot. An open slot opens a booking dialog with four player slots — you're
 auto-filled into the first one, and you can search-and-add up to three more players, each with their
-own Cash/Card payment method. A slot that's already booked but not full shows how many players and
-their combined handicap (never who they are) and lets you join it the same way. The combined
-handicap is capped at 120 — go over it and Confirm disables itself. **My Bookings** lists everything
-you've created or joined: cancel a booking you created (once it's unpaid), or unbook just yourself
-from one you joined. A Check-in button appears within 15 minutes of a booking's start time.
+own Cash/Card payment method. You can also add a golf cart (+€30, one per booking) — the checkbox
+live-checks the fleet's availability for that slot's 2-hour cart window and greys itself out with
+"No carts available" if none are free. A slot that's already booked but not full shows how many
+players and their combined handicap (never who they are) and lets you join it the same way (without
+a cart option — see "Assumptions" below). The combined handicap is capped at 120 — go over it and
+Confirm disables itself. **My Bookings** lists everything you've created or joined: cancel a booking
+you created (once it's unpaid), or unbook just yourself from one you joined. A Check-in button
+appears within 15 minutes of a booking's start time.
 
 **Admin panel** (`admin-web`): login-gated before anything else loads. Browse every resource
-(including inactive ones and golf carts, which the public site hides), edit a course's price per
-player, and open its tee sheet to see every slot's payment status (PAID/NOT PAID) alongside player
-count and handicap. A Ready booking (checked in) renders green and locked. Clicking an open slot lets
-an admin book on behalf of any user — whoever's placed in the first slot becomes that booking's
-owner, not the admin. Clicking an existing booking shows the full roster and offers a Cancel action
-that works regardless of who created it.
+(including inactive ones, which the public site hides), edit a course's price per player, and open
+its tee sheet to see every slot's payment status (PAID/NOT PAID) alongside player count and handicap.
+A Ready booking (checked in) renders green and locked. Clicking an open slot lets an admin book on
+behalf of any user — whoever's placed in the first slot becomes that booking's owner, not the admin.
+Clicking an existing booking shows the full roster and offers a Cancel action that works regardless
+of who created it. A separate **Carts** tab manages the fleet itself: add a cart by name, disable one
+(keeps its booking history but stops it being offered), or remove one entirely (blocked if it's ever
+been linked to a booking — disable it instead).
 
 Both apps share a JWT-based auth model: `POST /api/auth/login` / `POST /api/users` (register) return
 a token, sent as `Authorization: Bearer <token>` on subsequent requests. The admin app additionally
@@ -106,9 +113,24 @@ checks the `isAdmin` claim client-side before accepting a login, on top of the A
 - **Admin bookings skip the "caller must be the first player" rule** that the public create endpoint
   enforces (`POST /api/admin/bookings` vs. `POST /api/bookings`) — an admin booking on someone else's
   behalf is never the booking's owner themselves, by design.
-- **Golf carts exist as a resource type but aren't bookable through the UI** — the spec described them
-  as an add-on to an existing booking (a future feature), not a standalone tee sheet, so they're
-  excluded from both apps' course/resource browsing grids but still fully manageable via the API.
+- **Carts are a separate `Cart` entity, not a `Resource`** — a cart has no time-sheet of its own
+  (no opening/closing hours or slot duration), it's pooled interchangeable inventory. A cart
+  reservation is a fixed 2-hour block starting at the *booking's* start time (`Cart.ReservationHours`),
+  independent of the underlying resource's own slot length — a 10-minute tee time still holds a cart
+  for a full round. Availability is computed by checking which carts have an overlapping,
+  non-cancelled booking, the same way tee-time slot availability works — there's no stored "booked"
+  flag to get out of sync, so cancelling a booking frees its cart automatically.
+- **Only the original booker can attach a cart, and only at booking creation.** Joining someone else's
+  in-progress booking never offers a cart option — the booker already decided that when they created
+  it. `POST/DELETE /api/bookings/{id}/cart` exist for adding/removing a cart on an already-created
+  booking, but there's no UI for it yet (only wired into the create dialog).
+- **A cart can't be deleted once any booking has ever referenced it**, even a cancelled one —
+  `CartService.DeleteAsync` refuses and tells the admin to disable it instead, so booking history
+  never loses its cart reference. Backed by a `Restrict` FK at the DB level as well.
+- **Moving a booking with a cart attached doesn't re-validate cart availability at the new time** —
+  `AdminBookingsController`'s existing Move endpoint changes `Start`/`End` but never re-checks whether
+  the booking's cart is still free for the shifted 2-hour window, so two bookings could end up
+  claiming the same cart. Not addressed in this scope (see "what I'd do next").
 - **No automated tests were added for anything built after the initial backend foundation** — an
   explicit choice partway through this project to move faster on remaining features, made together
   with whoever's reviewing this. The pre-existing suite (`Domain`/`Application` unit tests, ~130 tests)
@@ -161,12 +183,17 @@ See "Assumptions and trade-offs" above for why this suite wasn't extended alongs
 - **Editing an existing booking's roster from the admin dialog** — right now admin can create a new
   booking or cancel an existing one, but can't add/remove players from a booking that's already in
   progress the way the public "join"/"unbook" flow lets a regular user do for their own bookings.
-- **Golf cart as a booking add-on**, and a real payment-reconciliation flow for cash bookings, both
-  noted above as explicitly deferred.
+- **A UI for adding/removing a cart after booking creation** — `POST/DELETE /api/bookings/{id}/cart`
+  already exist, but only the create dialog's checkbox uses them; My Bookings and the admin booking
+  dialog have no cart controls yet.
+- **Re-validate cart availability when an admin moves a booking**, closing the gap noted above.
+- A real payment-reconciliation flow for cash bookings, noted above as explicitly deferred.
 - **Automated test coverage** for everything built after the initial handicap/payment foundation —
-  the booking-player join/leave rules, the admin-create path, and all of the frontend — plus
-  API-level integration tests, neither of which exist today.
+  the booking-player join/leave rules, the admin-create path, the whole cart feature, and all of the
+  frontend — plus API-level integration tests, neither of which exist today.
 - The Postgres exclusion constraint mentioned above, to close the booking-overlap race condition
-  properly, and a real email delivery step for forgot-password instead of displaying it in the UI.
+  properly (the same race exists for cart reservations too, at much lower odds given the fleet is
+  usually larger than one), and a real email delivery step for forgot-password instead of displaying
+  it in the UI.
 - A mobile app (React Native) reusing the same API, once the web experience is solid — the assignment
   only asked for a React frontend, so this was intentionally out of scope for now.
