@@ -13,6 +13,12 @@
   letter-spacing: 0.01em;
 }
 
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .site-header-actions {
   display: flex;
   align-items: center;
@@ -31,6 +37,8 @@
   border-radius: var(--radius-sm);
   padding: 0.4rem 0.9rem;
   font-size: 0.9rem;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .header-button-primary {
