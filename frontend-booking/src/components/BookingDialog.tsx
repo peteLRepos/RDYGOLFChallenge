@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from './Modal';
 import { PlayerSearch } from './PlayerSearch';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { MAX_COMBINED_HANDICAP, MAX_PLAYERS } from '../constants';
-import type { CreateBookingRequest, PaymentMethod, Resource, TimeSlot, UserSearchResult } from '../api/types';
+import { CART_PRICE, MAX_COMBINED_HANDICAP, MAX_PLAYERS } from '../constants';
+import type { CartAvailability, CreateBookingRequest, PaymentMethod, Resource, TimeSlot, UserSearchResult } from '../api/types';
 import { formatTime } from '../utils/date';
 import './BookingDialog.css';
 
@@ -86,10 +86,19 @@ function CreateDialog({
   const [searchingIndex, setSearchingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [wantsCart, setWantsCart] = useState(false);
+  const [isCartAvailable, setIsCartAvailable] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    api
+      .get<CartAvailability>(`/api/carts/availability?start=${encodeURIComponent(slot.start)}`)
+      .then((res) => setIsCartAvailable(res.isAvailable))
+      .catch(() => setIsCartAvailable(false));
+  }, [slot.start]);
 
   const filled = players.filter((p): p is FilledSlot => p !== null);
   const combinedHandicap = filled.reduce((sum, p) => sum + p.handicap, 0);
-  const totalPrice = (resource.pricePerPlayer ?? 0) * filled.length;
+  const totalPrice = (resource.pricePerPlayer ?? 0) * filled.length + (wantsCart ? CART_PRICE : 0);
   const canConfirm = filled.length > 0 && combinedHandicap <= MAX_COMBINED_HANDICAP && !isSubmitting;
 
   const selectPlayer = (index: number, selected: UserSearchResult) => {
@@ -127,6 +136,7 @@ function CreateDialog({
         start: slot.start,
         end: slot.end,
         players: filled.map((p) => ({ userId: p.userId, paymentMethod: p.paymentMethod })),
+        wantsCart,
       };
       await api.post('/api/bookings', request);
       onBooked();
@@ -168,6 +178,16 @@ function CreateDialog({
           ),
         )}
       </div>
+
+      <label className={'cart-option' + (isCartAvailable === false ? ' cart-option-disabled' : '')}>
+        <input
+          type="checkbox"
+          checked={wantsCart}
+          disabled={isCartAvailable !== true}
+          onChange={(e) => setWantsCart(e.target.checked)}
+        />
+        {isCartAvailable === false ? 'No carts available' : `Add a golf cart (+€${CART_PRICE.toFixed(2)})`}
+      </label>
 
       <DialogFooter
         combinedHandicap={combinedHandicap}

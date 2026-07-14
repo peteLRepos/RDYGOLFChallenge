@@ -67,6 +67,19 @@
   cursor: default;
 }
 
+.cart-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  margin-bottom: 1rem;
+}
+
+.cart-option-disabled {
+  color: var(--color-text-muted);
+}
+
 .booking-dialog-footer {
   display: flex;
   flex-direction: column;
