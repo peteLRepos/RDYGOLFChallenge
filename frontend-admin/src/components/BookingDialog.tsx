@@ -7,6 +7,9 @@ import type { Booking, CreateBookingRequest, PaymentMethod, Resource, UserSearch
 import { formatTime } from '../utils/date';
 import './BookingDialog.css';
 
+const MIN_SIMULATOR_HOURS = 1;
+const MAX_SIMULATOR_HOURS = 5;
+
 type FilledSlot = { userId: string; name: string; handicap: number; paymentMethod: PaymentMethod };
 
 interface BookingDialogProps {
@@ -41,6 +44,10 @@ function CreateDialog({
   const [searchingIndex, setSearchingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [durationHours, setDurationHours] = useState(MIN_SIMULATOR_HOURS);
+
+  const isSimulator = resource.type === 'Simulator';
+  const bookingEnd = isSimulator ? new Date(start.getTime() + durationHours * 60 * 60 * 1000) : end;
 
   const filled = players.filter((p): p is FilledSlot => p !== null);
   const combinedHandicap = filled.reduce((sum, p) => sum + p.handicap, 0);
@@ -80,7 +87,7 @@ function CreateDialog({
       const request: CreateBookingRequest = {
         resourceId: resource.id,
         start: toIso(start),
-        end: toIso(end),
+        end: toIso(bookingEnd),
         players: filled.map((p) => ({ userId: p.userId, paymentMethod: p.paymentMethod })),
       };
       await api.post('/api/admin/bookings', request);
@@ -122,6 +129,21 @@ function CreateDialog({
           ),
         )}
       </div>
+
+      {isSimulator && (
+        <label className="duration-option">
+          Session length
+          <select value={durationHours} onChange={(e) => setDurationHours(Number(e.target.value))}>
+            {Array.from({ length: MAX_SIMULATOR_HOURS - MIN_SIMULATOR_HOURS + 1 }, (_, i) => MIN_SIMULATOR_HOURS + i).map(
+              (hours) => (
+                <option key={hours} value={hours}>
+                  {hours} hour{hours > 1 ? 's' : ''}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+      )}
 
       <div className="booking-dialog-footer">
         <div className="booking-dialog-summary">

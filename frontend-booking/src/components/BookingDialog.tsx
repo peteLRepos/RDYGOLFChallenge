@@ -5,8 +5,11 @@ import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { CART_PRICE, MAX_COMBINED_HANDICAP, MAX_PLAYERS } from '../constants';
 import type { CartAvailability, CreateBookingRequest, PaymentMethod, Resource, TimeSlot, UserSearchResult } from '../api/types';
-import { formatTime } from '../utils/date';
+import { formatTime, toNaiveIso } from '../utils/date';
 import './BookingDialog.css';
+
+const MIN_SIMULATOR_HOURS = 1;
+const MAX_SIMULATOR_HOURS = 5;
 
 type FilledSlot = { userId: string; name: string; handicap: number; paymentMethod: PaymentMethod };
 
@@ -88,13 +91,20 @@ function CreateDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [wantsCart, setWantsCart] = useState(false);
   const [isCartAvailable, setIsCartAvailable] = useState<boolean | null>(null);
+  const [durationHours, setDurationHours] = useState(MIN_SIMULATOR_HOURS);
+
+  const isSimulator = resource.type === 'Simulator';
+  const bookingEnd = isSimulator
+    ? toNaiveIso(new Date(new Date(slot.start).getTime() + durationHours * 60 * 60 * 1000))
+    : slot.end;
 
   useEffect(() => {
+    if (isSimulator) return; // no cart option for simulators — see below
     api
       .get<CartAvailability>(`/api/carts/availability?start=${encodeURIComponent(slot.start)}`)
       .then((res) => setIsCartAvailable(res.isAvailable))
       .catch(() => setIsCartAvailable(false));
-  }, [slot.start]);
+  }, [slot.start, isSimulator]);
 
   const filled = players.filter((p): p is FilledSlot => p !== null);
   const combinedHandicap = filled.reduce((sum, p) => sum + p.handicap, 0);
@@ -134,9 +144,9 @@ function CreateDialog({
       const request: CreateBookingRequest = {
         resourceId: resource.id,
         start: slot.start,
-        end: slot.end,
+        end: bookingEnd,
         players: filled.map((p) => ({ userId: p.userId, paymentMethod: p.paymentMethod })),
-        wantsCart,
+        wantsCart: isSimulator ? false : wantsCart,
       };
       await api.post('/api/bookings', request);
       onBooked();
@@ -179,15 +189,32 @@ function CreateDialog({
         )}
       </div>
 
-      <label className={'cart-option' + (isCartAvailable === false ? ' cart-option-disabled' : '')}>
-        <input
-          type="checkbox"
-          checked={wantsCart}
-          disabled={isCartAvailable !== true}
-          onChange={(e) => setWantsCart(e.target.checked)}
-        />
-        {isCartAvailable === false ? 'No carts available' : `Add a golf cart (+€${CART_PRICE.toFixed(2)})`}
-      </label>
+      {isSimulator && (
+        <label className="duration-option">
+          Session length
+          <select value={durationHours} onChange={(e) => setDurationHours(Number(e.target.value))}>
+            {Array.from({ length: MAX_SIMULATOR_HOURS - MIN_SIMULATOR_HOURS + 1 }, (_, i) => MIN_SIMULATOR_HOURS + i).map(
+              (hours) => (
+                <option key={hours} value={hours}>
+                  {hours} hour{hours > 1 ? 's' : ''}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+      )}
+
+      {!isSimulator && (
+        <label className={'cart-option' + (isCartAvailable === false ? ' cart-option-disabled' : '')}>
+          <input
+            type="checkbox"
+            checked={wantsCart}
+            disabled={isCartAvailable !== true}
+            onChange={(e) => setWantsCart(e.target.checked)}
+          />
+          {isCartAvailable === false ? 'No carts available' : `Add a golf cart (+€${CART_PRICE.toFixed(2)})`}
+        </label>
+      )}
 
       <DialogFooter
         combinedHandicap={combinedHandicap}
