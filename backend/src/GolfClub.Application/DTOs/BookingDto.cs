@@ -45,7 +45,14 @@ public record MoveBookingRequest(
 
 public record AddPlayerRequest(Guid UserId, PaymentMethod PaymentMethod);
 
+/// <param name="BookingId">
+/// Only set when the slot isn't available — lets the public booking flow join an in-progress
+/// booking (fewer than 4 players) without ever seeing who's already in it (no names/emails here).
+/// </param>
 public record TimeSlotDto(
     DateTime Start,
     DateTime End,
-    bool IsAvailable);
+    bool IsAvailable,
+    Guid? BookingId,
+    int? PlayerCount,
+    int? CombinedHandicap);

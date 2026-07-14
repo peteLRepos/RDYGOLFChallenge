@@ -1,0 +1,135 @@
+.tee-sheet-title {
+  margin: 0.25rem 0 0;
+  color: var(--color-green-900);
+}
+
+.price-editor {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.price-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.price-editor input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  width: 8rem;
+}
+
+.price-save-button {
+  background: var(--color-green-700);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.price-save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.slot-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.6rem;
+}
+
+.slot {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.5rem;
+  text-align: center;
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.slot:disabled {
+  cursor: not-allowed;
+}
+
+.slot-time {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.slot-customer {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.slot-status {
+  font-size: 0.7rem;
+}
+
+.slot-open {
+  background: var(--color-white);
+}
+
+.slot-open-label {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.slot-booked {
+  background: var(--color-blue-300);
+  color: var(--color-blue-700);
+}
+
+.slot-ready {
+  background: var(--color-green-300);
+  color: var(--color-green-900);
+}
+
+.paid-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  align-self: center;
+}
+
+.paid-badge.paid {
+  background: var(--color-green-900);
+  color: var(--color-white);
+}
+
+.paid-badge.unpaid {
+  background: var(--color-danger);
+  color: var(--color-white);
+}
+
+.slot-checkin {
+  display: inline-block;
+  background: var(--color-white);
+  border: 1px solid var(--color-blue-700);
+  color: var(--color-blue-700);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  margin-top: 0.15rem;
+}

@@ -7,9 +7,16 @@ public interface IBookingService
 {
     Task<List<TimeSlotDto>> GetAvailabilityAsync(Guid resourceId, DateOnly date, CancellationToken ct = default);
     Task<List<BookingDto>> GetAllAsync(CancellationToken ct = default);
-    Task<List<BookingDto>> GetMyBookingsAsync(Guid bookerId, CancellationToken ct = default);
+    /// <summary>Bookings the user either created or joined as a named player.</summary>
+    Task<List<BookingDto>> GetMyBookingsAsync(Guid userId, CancellationToken ct = default);
     Task<BookingDto> GetByIdAsync(Guid id, Guid requestingUserId, bool isAdmin, CancellationToken ct = default);
     Task<BookingDto> CreateAsync(CreateBookingRequest request, Guid bookerId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Admin-only — the booker is whichever user the admin put in the first slot, not the caller,
+    /// so unlike <see cref="CreateAsync"/> there's no "caller must be the first player" check.
+    /// </summary>
+    Task<BookingDto> AdminCreateAsync(CreateBookingRequest request, CancellationToken ct = default);
     Task CancelAsync(Guid bookingId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default);
     Task CheckInAsync(Guid bookingId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default);
 

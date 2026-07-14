@@ -24,8 +24,10 @@ public record UserDto(
 /// <summary>
 /// Deliberately minimal — used by the public search endpoint, which must never leak email,
 /// IsAdmin, or IsActive for arbitrary users. Full detail is only available via the admin endpoints.
+/// Handicap is included (unlike those) because the booking dialog needs it client-side to validate
+/// the combined-handicap cap and grey out Confirm before submitting, not just after a round trip.
 /// </summary>
-public record UserSearchResultDto(Guid Id, string Name);
+public record UserSearchResultDto(Guid Id, string Name, int Handicap);
 
 public record RegisterUserRequest(string Name, string Email, string Password, int? Handicap);
 

@@ -106,7 +106,7 @@ public class UserService : IUserService
             return [];
 
         var users = await _users.SearchByNameAsync(query.Trim(), ct);
-        return users.Select(u => new UserSearchResultDto(u.Id, u.Name)).ToList();
+        return users.Select(u => new UserSearchResultDto(u.Id, u.Name, u.Handicap)).ToList();
     }
 
     public async Task<List<UserDto>> GetAllAsync(CancellationToken ct = default)

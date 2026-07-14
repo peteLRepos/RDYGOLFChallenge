@@ -44,8 +44,10 @@ public class BookingService : IBookingService
         while (slotStart + duration <= dayEnd)
         {
             var slotEnd = slotStart + duration;
-            var isAvailable = existingBookings.All(b => !b.OverlapsWith(slotStart, slotEnd));
-            slots.Add(new TimeSlotDto(slotStart, slotEnd, isAvailable));
+            var overlapping = existingBookings.FirstOrDefault(b => b.OverlapsWith(slotStart, slotEnd));
+            slots.Add(overlapping is null
+                ? new TimeSlotDto(slotStart, slotEnd, IsAvailable: true, BookingId: null, PlayerCount: null, CombinedHandicap: null)
+                : new TimeSlotDto(slotStart, slotEnd, IsAvailable: false, overlapping.Id, overlapping.PlayerCount, overlapping.CombinedHandicap));
             slotStart = slotEnd;
         }
 
@@ -80,6 +82,24 @@ public class BookingService : IBookingService
         if (request.Players[0].UserId != bookerId)
             throw new DomainException("The requesting user must be the booking's first player.");
 
+        return await CreateCoreAsync(request, bookerId, ct);
+    }
+
+    /// <summary>
+    /// Admin-only equivalent of <see cref="CreateAsync"/> — the booker is whichever user the admin
+    /// put in the first slot, not the admin's own account, so it skips the "caller must be the
+    /// first player" check that the public endpoint enforces.
+    /// </summary>
+    public async Task<BookingDto> AdminCreateAsync(CreateBookingRequest request, CancellationToken ct = default)
+    {
+        if (request.Players.Count == 0)
+            throw new DomainException("A booking needs at least one player.");
+
+        return await CreateCoreAsync(request, request.Players[0].UserId, ct);
+    }
+
+    private async Task<BookingDto> CreateCoreAsync(CreateBookingRequest request, Guid bookerId, CancellationToken ct)
+    {
         var resource = await ValidateSlotAsync(request.ResourceId, request.Start, request.End, excludeBookingId: null, ct);
         var booker = await _users.GetByIdAsync(bookerId, ct)
             ?? throw new NotFoundException($"User '{bookerId}' was not found.");

@@ -28,6 +28,10 @@ public class BookingRepository : IBookingRepository
 
         return await _context.Bookings
             .AsNoTracking()
+            // Needed so the availability endpoint can report each booked slot's player count and
+            // combined handicap — Players is otherwise not loaded, and PlayerCount/CombinedHandicap
+            // read off it, not a persisted column.
+            .Include(b => b.Players)
             .Where(b => b.ResourceId == resourceId
                         && b.Status != BookingStatus.Cancelled
                         && b.Start < dayEnd

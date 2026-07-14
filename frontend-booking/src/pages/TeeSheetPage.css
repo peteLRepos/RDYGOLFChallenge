@@ -1,0 +1,61 @@
+.tee-sheet-title {
+  margin: 0.25rem 0 0;
+  color: var(--color-green-900);
+}
+
+.slot-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 0.6rem;
+}
+
+.slot {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.4rem;
+  text-align: center;
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-family: inherit;
+}
+
+.slot:disabled {
+  cursor: not-allowed;
+}
+
+.slot-time {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.slot-status {
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+.slot-open {
+  background: var(--color-white);
+  color: var(--color-green-900);
+}
+
+.slot-open:hover {
+  background: var(--color-green-100);
+  cursor: pointer;
+}
+
+.slot-joinable {
+  background: var(--color-blue-300);
+  color: var(--color-blue-700);
+  cursor: pointer;
+}
+
+.slot-full {
+  background: var(--color-green-900);
+  color: var(--color-white);
+  opacity: 0.75;
+}
