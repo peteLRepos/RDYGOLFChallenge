@@ -68,4 +68,18 @@ public class BookingsController : ControllerBase
         var booking = await _bookingService.RemovePlayerAsync(id, userId, _currentUser.UserId, _currentUser.IsAdmin, ct);
         return Ok(booking);
     }
+
+    [HttpPost("{id:guid}/cart")]
+    public async Task<IActionResult> AddCart(Guid id, CancellationToken ct)
+    {
+        var booking = await _bookingService.AddCartAsync(id, _currentUser.UserId, _currentUser.IsAdmin, ct);
+        return Ok(booking);
+    }
+
+    [HttpDelete("{id:guid}/cart")]
+    public async Task<IActionResult> RemoveCart(Guid id, CancellationToken ct)
+    {
+        var booking = await _bookingService.RemoveCartAsync(id, _currentUser.UserId, _currentUser.IsAdmin, ct);
+        return Ok(booking);
+    }
 }

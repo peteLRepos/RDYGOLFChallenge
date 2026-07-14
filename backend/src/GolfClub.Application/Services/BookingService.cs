@@ -12,6 +12,7 @@ public class BookingService : IBookingService
     private readonly IBookingRepository _bookings;
     private readonly IResourceRepository _resources;
     private readonly IUserRepository _users;
+    private readonly ICartService _cartService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDateTimeProvider _dateTimeProvider;
 
@@ -19,12 +20,14 @@ public class BookingService : IBookingService
         IBookingRepository bookings,
         IResourceRepository resources,
         IUserRepository users,
+        ICartService cartService,
         IUnitOfWork unitOfWork,
         IDateTimeProvider dateTimeProvider)
     {
         _bookings = bookings;
         _resources = resources;
         _users = users;
+        _cartService = cartService;
         _unitOfWork = unitOfWork;
         _dateTimeProvider = dateTimeProvider;
     }
@@ -121,6 +124,12 @@ public class BookingService : IBookingService
             var user = await _users.GetByIdAsync(extraPlayer.UserId, ct)
                 ?? throw new NotFoundException($"User '{extraPlayer.UserId}' was not found.");
             booking.AddPlayer(extraPlayer.UserId, user.Handicap, extraPlayer.PaymentMethod, addedByUserId: bookerId, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
+        }
+
+        if (request.WantsCart)
+        {
+            var cartId = await _cartService.FindAvailableCartIdAsync(booking.Start, ct);
+            booking.AddCart(cartId, resource.PricePerPlayer ?? 0m);
         }
 
         await _bookings.AddAsync(booking, ct);
@@ -226,6 +235,39 @@ public class BookingService : IBookingService
         return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
     }
 
+    /// <summary>Attaches a cart to an existing pending booking — booker or admin only, same as Cancel/CheckIn.</summary>
+    public async Task<BookingDto> AddCartAsync(Guid bookingId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default)
+    {
+        var booking = await _bookings.GetByIdAsync(bookingId, ct)
+            ?? throw new NotFoundException($"Booking '{bookingId}' was not found.");
+        EnsureOwnerOrAdmin(booking, requestingUserId, isAdmin);
+
+        var resource = await _resources.GetByIdAsync(booking.ResourceId, ct)
+            ?? throw new NotFoundException($"Resource '{booking.ResourceId}' was not found.");
+
+        var cartId = await _cartService.FindAvailableCartIdAsync(booking.Start, ct);
+        booking.AddCart(cartId, resource.PricePerPlayer ?? 0m);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
+    }
+
+    /// <summary>Detaches a booking's cart — booker or admin only, same as Cancel/CheckIn.</summary>
+    public async Task<BookingDto> RemoveCartAsync(Guid bookingId, Guid requestingUserId, bool isAdmin, CancellationToken ct = default)
+    {
+        var booking = await _bookings.GetByIdAsync(bookingId, ct)
+            ?? throw new NotFoundException($"Booking '{bookingId}' was not found.");
+        EnsureOwnerOrAdmin(booking, requestingUserId, isAdmin);
+
+        var resource = await _resources.GetByIdAsync(booking.ResourceId, ct)
+            ?? throw new NotFoundException($"Resource '{booking.ResourceId}' was not found.");
+
+        booking.RemoveCart(resource.PricePerPlayer ?? 0m);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
+    }
+
     // Returns the validated Resource so callers that need its PricePerPlayer (Create/Move) don't
     // have to re-fetch it — they already both re-fetch the Booking afterward for its DTO anyway
     // (see those methods' comments), so this at least avoids a second, separate Resources lookup.
@@ -276,5 +318,7 @@ public class BookingService : IBookingService
         booking.CombinedHandicap,
         booking.Players.Select(p => new BookingPlayerDto(p.UserId, p.User?.Name ?? string.Empty, p.Handicap, p.PaymentMethod, p.AddedByUserId)).ToList(),
         booking.TotalPrice,
-        booking.CreatedAt);
+        booking.CreatedAt,
+        booking.CartId,
+        booking.Cart?.Name);
 }

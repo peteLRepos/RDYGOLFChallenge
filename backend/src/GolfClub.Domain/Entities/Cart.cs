@@ -12,6 +12,14 @@ public class Cart
 {
     public const int MaxNameLength = 100;
 
+    // A cart reservation is a fixed 2-hour block starting at the booking's own start time,
+    // regardless of the underlying resource's slot length (see Booking.CartReservationEnd) —
+    // matches how long a round actually takes, not how long the tee-time slot itself is.
+    public const int ReservationHours = 2;
+
+    // Flat per-booking add-on, not per player (unlike Resource.PricePerPlayer).
+    public const decimal FixedPrice = 30m;
+
     public Guid Id { get; private set; }
     public string Name { get; private set; } = null!;
     public bool IsActive { get; private set; }
