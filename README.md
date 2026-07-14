@@ -86,11 +86,14 @@ volume if you want a fully fresh database.
   index can't backstop it — instead, both methods run inside a transaction holding a Postgres advisory
   lock (`UnitOfWork.AcquireExclusiveLockAsync`) for the whole read-check-write sequence, so two
   concurrent requests can't both pass the check before either commits.
-- **Booking cancellation has no ownership check.** Any booking ID can be cancelled via the public
-  `DELETE /api/bookings/{id}` endpoint. A real version would require the customer's email or a
-  confirmation token to prove ownership.
 - **Resource availability slots are fixed-width**, generated from each resource's configured slot
   duration and operating hours — no support for custom/ad-hoc time ranges.
+- **Forgot-password has no email delivery.** `POST /api/users/forgot-password` is unauthenticated
+  by necessity (the caller isn't logged in yet) and, given no email step in scope, returns the new
+  plaintext password directly in the response for the UI to display. This means knowing a member's
+  email is enough to take over their account — acceptable for this take-home's scope, but a real
+  version would send the new password (or a one-time reset link) to the email address instead of
+  returning it in the API response, so only the account owner ever sees it.
 
 ## Out of scope in this take-home — how I'd set it up for production
 

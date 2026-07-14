@@ -1,5 +1,6 @@
 using GolfClub.Application.DTOs;
 using GolfClub.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GolfClub.Api.Controllers;
@@ -25,6 +26,7 @@ public class UsersController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
+    [Authorize]
     [HttpGet("search")]
     public async Task<IActionResult> Search([FromQuery] string q, CancellationToken ct)
     {

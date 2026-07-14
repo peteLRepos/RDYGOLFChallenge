@@ -41,4 +41,9 @@ public record AuthResponseDto(string Token, UserDto User);
 /// </summary>
 public record ForgotPasswordRequest(string Email);
 
-public record ForgotPasswordResponseDto(string NewPassword);
+/// <summary>
+/// Always returned with 200, whether or not the email matched an account — an unknown email isn't
+/// reported as 404, so simply probing status codes can't be used to enumerate registered members.
+/// <paramref name="NewPassword"/> is only populated when an account was actually found.
+/// </summary>
+public record ForgotPasswordResponseDto(bool AccountFound, string? NewPassword);

@@ -15,6 +15,13 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(b => b.IsPaid)
             .IsRequired();
 
+        // Persists whether IsPaid was set via an explicit MarkPaid() call, so RecomputeIsPaid
+        // (run on every AddPlayer/RemovePlayer) knows never to overwrite a manual settlement —
+        // see Booking.RecomputeIsPaid.
+        builder.Property<bool>("_manuallyMarkedPaid")
+            .HasColumnName("ManuallyMarkedPaid")
+            .IsRequired();
+
         // Derived from Players.Count/Players.Sum(...) — not persisted columns, not settable, so
         // they'd otherwise trip up EF's convention-based model discovery.
         builder.Ignore(b => b.PlayerCount);

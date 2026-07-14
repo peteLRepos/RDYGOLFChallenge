@@ -71,7 +71,7 @@ public class BookingService : IBookingService
         var booking = await _bookings.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"Booking '{id}' was not found.");
 
-        EnsureOwnerOrAdmin(booking, requestingUserId, isAdmin);
+        EnsureCanView(booking, requestingUserId, isAdmin);
         return ToDto(booking);
     }
 
@@ -206,10 +206,21 @@ public class BookingService : IBookingService
     {
         var booking = await _bookings.GetByIdAsync(bookingId, ct)
             ?? throw new NotFoundException($"Booking '{bookingId}' was not found.");
+
+        // Allowed: an admin, the player removing themselves, or whoever added that player (e.g.
+        // the booker removing a guest they invited) — matches AddPlayerAsync's permission shape
+        // (checked here, not in Domain, so both endpoints fail the same way: 403, not 400).
+        var player = booking.Players.FirstOrDefault(p => p.UserId == targetUserId)
+            ?? throw new NotFoundException($"User '{targetUserId}' is not in this booking.");
+        var isSelfRemoval = requestingUserId == targetUserId;
+        var isRemoverWhoAddedThem = requestingUserId == player.AddedByUserId;
+        if (!isAdmin && !isSelfRemoval && !isRemoverWhoAddedThem)
+            throw new ForbiddenException("You can only remove a player you added, or remove yourself.");
+
         var resource = await _resources.GetByIdAsync(booking.ResourceId, ct)
             ?? throw new NotFoundException($"Resource '{booking.ResourceId}' was not found.");
 
-        booking.RemovePlayer(targetUserId, requestingUserId, isAdmin, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
+        booking.RemovePlayer(targetUserId, resource.PricePerPlayer ?? 0m, _dateTimeProvider.Now);
         await _unitOfWork.SaveChangesAsync(ct);
 
         return ToDto((await _bookings.GetByIdAsync(booking.Id, ct))!);
@@ -239,6 +250,14 @@ public class BookingService : IBookingService
     private static void EnsureOwnerOrAdmin(Booking booking, Guid requestingUserId, bool isAdmin)
     {
         if (!isAdmin && booking.BookerId != requestingUserId)
+            throw new ForbiddenException("You do not have permission to access this booking.");
+    }
+
+    // Viewing is broader than owning: a booking's other named players (invited or self-joined)
+    // can see it too, not just the original booker — unlike Cancel/CheckIn, which stay booker-only.
+    private static void EnsureCanView(Booking booking, Guid requestingUserId, bool isAdmin)
+    {
+        if (!isAdmin && booking.BookerId != requestingUserId && booking.Players.All(p => p.UserId != requestingUserId))
             throw new ForbiddenException("You do not have permission to access this booking.");
     }
 
