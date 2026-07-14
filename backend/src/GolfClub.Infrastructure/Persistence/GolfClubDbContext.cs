@@ -12,6 +12,7 @@ public class GolfClubDbContext : DbContext
     public DbSet<Resource> Resources => Set<Resource>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Cart> Carts => Set<Cart>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<IResourceRepository, ResourceRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICartRepository, CartRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
