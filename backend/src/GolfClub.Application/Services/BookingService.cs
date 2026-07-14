@@ -137,6 +137,9 @@ public class BookingService : IBookingService
 
         if (request.WantsCart)
         {
+            if (resource.Type == ResourceType.Simulator)
+                throw new DomainException("Golf carts aren't available for simulator bookings.");
+
             var cartId = await _cartService.FindAvailableCartIdAsync(booking.Start, ct);
             booking.AddCart(cartId, resource.PricePerPlayer ?? 0m);
         }
@@ -253,6 +256,8 @@ public class BookingService : IBookingService
 
         var resource = await _resources.GetByIdAsync(booking.ResourceId, ct)
             ?? throw new NotFoundException($"Resource '{booking.ResourceId}' was not found.");
+        if (resource.Type == ResourceType.Simulator)
+            throw new DomainException("Golf carts aren't available for simulator bookings.");
 
         var cartId = await _cartService.FindAvailableCartIdAsync(booking.Start, ct);
         booking.AddCart(cartId, resource.PricePerPlayer ?? 0m);
@@ -290,6 +295,8 @@ public class BookingService : IBookingService
 
         if (!resource.IsWithinOperatingHours(start, end))
             throw new DomainException("The requested time is outside this resource's operating hours.");
+
+        resource.ValidateBookingDuration(start, end);
 
         var blockingResourceIds = await GetBlockingResourceIdsAsync(resource, ct);
         var hasOverlap = await _bookings.HasOverlapAsync(blockingResourceIds, start, end, excludeBookingId, ct);
