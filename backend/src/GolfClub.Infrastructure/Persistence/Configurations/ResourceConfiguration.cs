@@ -37,5 +37,14 @@ public class ResourceConfiguration : IEntityTypeConfiguration<Resource>
 
         builder.Property(r => r.IsActive)
             .IsRequired();
+
+        // Self-referencing, unidirectional (no inverse navigation needed — BookingService resolves
+        // "who links to me" with a query, not a loaded collection). Restrict rather than Cascade:
+        // there's no resource delete path today, so this is a backstop, not something expected to
+        // fire in practice.
+        builder.HasOne<Resource>()
+            .WithMany()
+            .HasForeignKey(r => r.LinkedResourceId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

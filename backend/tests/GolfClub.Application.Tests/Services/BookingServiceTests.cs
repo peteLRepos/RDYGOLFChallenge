@@ -31,6 +31,9 @@ public class BookingServiceTests
         // Default booker for CreateAsync's lookup — individual tests override with a specific
         // user/handicap only when that matters to what they're asserting.
         _users.Setup(u => u.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(CreateUser());
+        // GetBlockingResourceIdsAsync always calls this to resolve linked/linking resources — empty
+        // by default since most tests don't involve resource linking (see the lesson/6-hole tests).
+        _resources.Setup(r => r.GetAllAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _sut = new BookingService(_bookings.Object, _resources.Object, _users.Object, _cartService.Object, _unitOfWork.Object, _dateTimeProvider.Object);
     }
 
@@ -118,7 +121,7 @@ public class BookingServiceTests
     {
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         var request = new CreateBookingRequest(Guid.NewGuid(), Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.Cash));
 
@@ -159,7 +162,7 @@ public class BookingServiceTests
         var resourceId = Guid.NewGuid();
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         StubCreateAndReload();
         var start = Now.AddHours(1);
@@ -185,7 +188,7 @@ public class BookingServiceTests
         var resourceId = Guid.NewGuid();
         var resource = CreateResource();
         _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         StubCreateAndReload();
         var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.Card));
@@ -201,7 +204,7 @@ public class BookingServiceTests
         var resourceId = Guid.NewGuid();
         var resource = CreateResource(pricePerPlayer: 15m);
         _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         StubCreateAndReload();
         var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.Cash));
@@ -218,7 +221,7 @@ public class BookingServiceTests
         var resourceId = Guid.NewGuid();
         var resource = CreateResource(pricePerPlayer: null);
         _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         StubCreateAndReload();
         var request = new CreateBookingRequest(resourceId, Now.AddHours(1), Now.AddHours(2), SoloPlayer(PaymentMethod.Cash));
@@ -437,7 +440,7 @@ public class BookingServiceTests
         var booking = CreateBooking();
         _bookings.Setup(b => b.GetByIdAsync(booking.Id, It.IsAny<CancellationToken>())).ReturnsAsync(booking);
         _resources.Setup(r => r.GetByIdAsync(newResourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        _bookings.Setup(b => b.HasOverlapAsync(newResourceId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), booking.Id, It.IsAny<CancellationToken>()))
+        _bookings.Setup(b => b.HasOverlapAsync(It.Is<IEnumerable<Guid>>(ids => ids.Contains(newResourceId)), It.IsAny<DateTime>(), It.IsAny<DateTime>(), booking.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         var newStart = Now.AddHours(3);
         var newEnd = Now.AddHours(4);
@@ -460,7 +463,7 @@ public class BookingServiceTests
         booking.TotalPrice.Should().Be(10m);
         _bookings.Setup(b => b.GetByIdAsync(booking.Id, It.IsAny<CancellationToken>())).ReturnsAsync(booking);
         _resources.Setup(r => r.GetByIdAsync(newResourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        _bookings.Setup(b => b.HasOverlapAsync(newResourceId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), booking.Id, It.IsAny<CancellationToken>()))
+        _bookings.Setup(b => b.HasOverlapAsync(It.Is<IEnumerable<Guid>>(ids => ids.Contains(newResourceId)), It.IsAny<DateTime>(), It.IsAny<DateTime>(), booking.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         var request = new MoveBookingRequest(newResourceId, Now.AddHours(3), Now.AddHours(4));
 
@@ -485,7 +488,7 @@ public class BookingServiceTests
         await _sut.MoveAsync(booking.Id, request);
 
         _bookings.Verify(b => b.HasOverlapAsync(
-            It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), booking.Id, It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), booking.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -495,7 +498,7 @@ public class BookingServiceTests
         var booking = CreateBooking();
         _bookings.Setup(b => b.GetByIdAsync(booking.Id, It.IsAny<CancellationToken>())).ReturnsAsync(booking);
         _resources.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+        _bookings.Setup(b => b.HasOverlapAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         var request = new MoveBookingRequest(Guid.NewGuid(), Now.AddHours(3), Now.AddHours(4));
 
@@ -556,13 +559,12 @@ public class BookingServiceTests
     [Fact]
     public async Task GetAvailabilityAsync_GeneratesSlotsForResourceOperatingHours()
     {
-        var resourceId = Guid.NewGuid();
         var resource = new Resource("Bay 1", ResourceType.DrivingRangeBay, 60, new TimeOnly(9, 0), new TimeOnly(12, 0));
-        _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
-        _bookings.Setup(b => b.GetByResourceAndDateAsync(resourceId, It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+        _resources.Setup(r => r.GetByIdAsync(resource.Id, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
+        _bookings.Setup(b => b.GetByResourceAndDateAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        var slots = await _sut.GetAvailabilityAsync(resourceId, DateOnly.FromDateTime(Now));
+        var slots = await _sut.GetAvailabilityAsync(resource.Id, DateOnly.FromDateTime(Now));
 
         slots.Should().HaveCount(3);
         slots.Should().OnlyContain(s => s.IsAvailable);
@@ -571,18 +573,19 @@ public class BookingServiceTests
     [Fact]
     public async Task GetAvailabilityAsync_MarksSlotsOverlappingExistingBookingsAsUnavailable()
     {
-        var resourceId = Guid.NewGuid();
         var resource = new Resource("Bay 1", ResourceType.DrivingRangeBay, 60, new TimeOnly(9, 0), new TimeOnly(12, 0));
-        _resources.Setup(r => r.GetByIdAsync(resourceId, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
+        _resources.Setup(r => r.GetByIdAsync(resource.Id, It.IsAny<CancellationToken>())).ReturnsAsync(resource);
         var day = DateOnly.FromDateTime(Now).ToDateTime(TimeOnly.MinValue);
-        var existingBooking = CreateBooking(resourceId: resourceId, start: day.AddHours(10), end: day.AddHours(11));
-        _bookings.Setup(b => b.GetByResourceAndDateAsync(resourceId, It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+        var existingBooking = CreateBooking(resourceId: resource.Id, start: day.AddHours(10), end: day.AddHours(11));
+        _bookings.Setup(b => b.GetByResourceAndDateAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([existingBooking]);
 
-        var slots = await _sut.GetAvailabilityAsync(resourceId, DateOnly.FromDateTime(Now));
+        var slots = await _sut.GetAvailabilityAsync(resource.Id, DateOnly.FromDateTime(Now));
 
         slots.Should().HaveCount(3);
-        slots.Single(s => s.Start == day.AddHours(10)).IsAvailable.Should().BeFalse();
+        var bookedSlot = slots.Single(s => s.Start == day.AddHours(10));
+        bookedSlot.IsAvailable.Should().BeFalse();
+        bookedSlot.BookingId.Should().Be(existingBooking.Id);
         slots.Where(s => s.Start != day.AddHours(10)).Should().OnlyContain(s => s.IsAvailable);
     }
 }

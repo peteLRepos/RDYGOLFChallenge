@@ -37,7 +37,8 @@ public class BookingService : IBookingService
         var resource = await _resources.GetByIdAsync(resourceId, ct)
             ?? throw new NotFoundException($"Resource '{resourceId}' was not found.");
 
-        var existingBookings = await _bookings.GetByResourceAndDateAsync(resourceId, date, ct);
+        var blockingResourceIds = await GetBlockingResourceIdsAsync(resource, ct);
+        var existingBookings = await _bookings.GetByResourceAndDateAsync(blockingResourceIds, date, ct);
 
         var slots = new List<TimeSlotDto>();
         var slotStart = date.ToDateTime(resource.OpeningTime);
@@ -48,9 +49,17 @@ public class BookingService : IBookingService
         {
             var slotEnd = slotStart + duration;
             var overlapping = existingBookings.FirstOrDefault(b => b.OverlapsWith(slotStart, slotEnd));
+
+            // A block from a *linked* resource (e.g. a lesson holding this hour of the 6-Hole
+            // Course) is unavailable but not joinable — no player count/handicap to show, and no
+            // bookingId a client could use to try joining a booking that isn't even on this resource.
+            var isSameResourceBooking = overlapping is not null && overlapping.ResourceId == resource.Id;
+
             slots.Add(overlapping is null
                 ? new TimeSlotDto(slotStart, slotEnd, IsAvailable: true, BookingId: null, PlayerCount: null, CombinedHandicap: null)
-                : new TimeSlotDto(slotStart, slotEnd, IsAvailable: false, overlapping.Id, overlapping.PlayerCount, overlapping.CombinedHandicap));
+                : isSameResourceBooking
+                    ? new TimeSlotDto(slotStart, slotEnd, IsAvailable: false, overlapping.Id, overlapping.PlayerCount, overlapping.CombinedHandicap)
+                    : new TimeSlotDto(slotStart, slotEnd, IsAvailable: false, BookingId: null, PlayerCount: null, CombinedHandicap: null));
             slotStart = slotEnd;
         }
 
@@ -282,11 +291,31 @@ public class BookingService : IBookingService
         if (!resource.IsWithinOperatingHours(start, end))
             throw new DomainException("The requested time is outside this resource's operating hours.");
 
-        var hasOverlap = await _bookings.HasOverlapAsync(resourceId, start, end, excludeBookingId, ct);
+        var blockingResourceIds = await GetBlockingResourceIdsAsync(resource, ct);
+        var hasOverlap = await _bookings.HasOverlapAsync(blockingResourceIds, start, end, excludeBookingId, ct);
         if (hasOverlap)
             throw new DomainException("This time slot is already booked.");
 
         return resource;
+    }
+
+    /// <summary>
+    /// A resource, its linked resource (if any), and anything that links back to it — e.g. for the
+    /// 6-Hole Course this returns [6-Hole Course, Lesson with Pro], and for the Lesson resource it
+    /// returns [Lesson with Pro, 6-Hole Course]. Used so booking either one blocks (and is blocked
+    /// by) the other for the same window, computed live rather than via a stored flag — same
+    /// philosophy as cart availability.
+    /// </summary>
+    private async Task<List<Guid>> GetBlockingResourceIdsAsync(Resource resource, CancellationToken ct)
+    {
+        var ids = new List<Guid> { resource.Id };
+        if (resource.LinkedResourceId.HasValue)
+            ids.Add(resource.LinkedResourceId.Value);
+
+        var allResources = await _resources.GetAllAsync(includeInactive: true, ct);
+        ids.AddRange(allResources.Where(r => r.LinkedResourceId == resource.Id).Select(r => r.Id));
+
+        return ids.Distinct().ToList();
     }
 
     private static void EnsureOwnerOrAdmin(Booking booking, Guid requestingUserId, bool isAdmin)

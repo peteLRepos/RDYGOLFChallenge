@@ -20,6 +20,14 @@ public class Resource
     public decimal? PricePerPlayer { get; private set; }
     public bool IsActive { get; private set; }
 
+    /// <summary>
+    /// Booking this resource also requires (and blocks) the linked resource for the same window,
+    /// and vice versa — e.g. a lesson automatically reserves a full hour of the 6-Hole Course, and
+    /// that hour can't be tee-time-booked while the lesson holds it. See BookingService for the
+    /// bidirectional overlap check. Set only via seed data for now, not admin-editable.
+    /// </summary>
+    public Guid? LinkedResourceId { get; private set; }
+
     private Resource()
     {
     }
@@ -30,7 +38,8 @@ public class Resource
         int slotDurationMinutes,
         TimeOnly openingTime,
         TimeOnly closingTime,
-        decimal? pricePerPlayer = null)
+        decimal? pricePerPlayer = null,
+        Guid? linkedResourceId = null)
     {
         ValidateFields(name, slotDurationMinutes, openingTime, closingTime, pricePerPlayer);
 
@@ -41,6 +50,7 @@ public class Resource
         OpeningTime = openingTime;
         ClosingTime = closingTime;
         PricePerPlayer = pricePerPlayer;
+        LinkedResourceId = linkedResourceId;
         IsActive = true;
     }
 
