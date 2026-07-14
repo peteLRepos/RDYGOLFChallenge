@@ -15,6 +15,9 @@ export function Header({ title }: { title: string }) {
         <Link to="/carts" className="header-button">
           Carts
         </Link>
+        <Link to="/waitlist" className="header-button">
+          Waitlist
+        </Link>
       </nav>
       <div className="site-header-actions">
         <span className="site-user">{user?.name}</span>

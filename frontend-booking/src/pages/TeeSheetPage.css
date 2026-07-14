@@ -59,3 +59,21 @@
   color: var(--color-white);
   opacity: 0.75;
 }
+
+.slot-queue-btn {
+  width: 100%;
+  margin-top: 0.3rem;
+  border: 1px solid var(--color-blue-700);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-blue-700);
+  font-size: 0.7rem;
+  padding: 0.25rem 0.3rem;
+  font-family: inherit;
+}
+
+.slot-queue-btn:disabled {
+  border-color: var(--color-text-muted);
+  color: var(--color-text-muted);
+  cursor: default;
+}

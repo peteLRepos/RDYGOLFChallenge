@@ -18,6 +18,12 @@ function isSlotClickable(slot: TimeSlot): boolean {
   return (slot.playerCount ?? 0) < MAX_PLAYERS;
 }
 
+// Only a slot with an actual, full booking on *this* resource can be queued for — matches the
+// backend's JoinAsync check, which looks for a same-resource booking at MaxPlayers.
+function isQueueable(slot: TimeSlot): boolean {
+  return !slot.isAvailable && slot.bookingId !== null && (slot.playerCount ?? 0) >= MAX_PLAYERS;
+}
+
 export function TeeSheetPage() {
   const { resourceId } = useParams<{ resourceId: string }>();
   const { isAuthenticated } = useAuth();
@@ -29,6 +35,8 @@ export function TeeSheetPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+  const [queuedSlotStarts, setQueuedSlotStarts] = useState<Set<string>>(new Set());
+  const [queueError, setQueueError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsResourceLoading(true);
@@ -64,6 +72,22 @@ export function TeeSheetPage() {
     setSelectedSlot(slot);
   };
 
+  const handleJoinQueue = async (slot: TimeSlot) => {
+    if (!isAuthenticated) {
+      setAuthMode('login');
+      return;
+    }
+    if (!resourceId) return;
+
+    setQueueError(null);
+    try {
+      await api.post('/api/waitlist', { resourceId, slotStart: slot.start });
+      setQueuedSlotStarts((prev) => new Set(prev).add(slot.start));
+    } catch (err) {
+      setQueueError(err instanceof ApiError ? err.message : 'Could not join the queue.');
+    }
+  };
+
   return (
     <main className="page">
       <p className="subtitle">
@@ -81,11 +105,14 @@ export function TeeSheetPage() {
 
           {isLoading && <p>Loading tee sheet…</p>}
           {error && <p className="error">{error}</p>}
+          {queueError && <p className="error">{queueError}</p>}
           {!isLoading && !error && slots.length === 0 && <p>No time slots are configured for this course.</p>}
 
           <ul className="slot-grid">
             {slots.map((slot) => {
               const clickable = isSlotClickable(slot);
+              const queueable = isQueueable(slot);
+              const isQueued = queuedSlotStarts.has(slot.start);
 
               return (
                 <li key={slot.start}>
@@ -111,6 +138,16 @@ export function TeeSheetPage() {
                       </span>
                     )}
                   </button>
+                  {queueable && (
+                    <button
+                      type="button"
+                      className="slot-queue-btn"
+                      disabled={isQueued}
+                      onClick={() => handleJoinQueue(slot)}
+                    >
+                      {isQueued ? "You're queued" : 'Add me to queue'}
+                    </button>
+                  )}
                 </li>
               );
             })}
