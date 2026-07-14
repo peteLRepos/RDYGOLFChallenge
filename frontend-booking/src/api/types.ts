@@ -120,3 +120,19 @@ export interface AddPlayerRequest {
   userId: string;
   paymentMethod: PaymentMethod;
 }
+
+export interface JoinWaitlistRequest {
+  resourceId: string;
+  slotStart: string;
+}
+
+export interface WaitlistEntry {
+  id: string;
+  resourceId: string;
+  resourceName: string;
+  slotStart: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+}
