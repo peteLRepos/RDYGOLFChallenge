@@ -12,6 +12,9 @@ export function Header({ title }: { title: string }) {
     <header className="site-header">
       <span className="site-title">{title}</span>
       <div className="site-header-actions">
+        <Link to="/" className="header-button">
+          Create booking
+        </Link>
         {isAuthenticated ? (
           <>
             <Link to="/my-bookings" className="header-button">

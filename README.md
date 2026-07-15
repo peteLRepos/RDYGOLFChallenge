@@ -61,9 +61,10 @@ live-checks the fleet's availability for that slot's 2-hour cart window and grey
 players and their combined handicap (never who they are) and lets you join it the same way (without
 a cart option — see "Assumptions" below). The combined handicap is capped at 120 — go over it and
 Confirm disables itself. If a slot is genuinely full (4/4), an **"Add me to queue"** button appears
-next to it instead — see "Waitlist" below. **My Bookings** lists everything you've created or joined:
-cancel a booking you created (once it's unpaid), or unbook just yourself from one you joined. A
-Check-in button appears within 15 minutes of a booking's start time.
+next to it instead — see "Waitlist" below. **My Bookings** lists everything you've created or joined,
+showing its attached cart if it has one: cancel a booking you created (once it's unpaid), unbook
+just yourself from one you joined, or remove an individual guest you added without cancelling the
+whole thing. A Check-in button appears within 15 minutes of a booking's start time.
 
 **Lessons and Simulators**: the "Lesson with Pro" resource is linked to the 6-Hole Course — booking
 either one for a given hour automatically blocks (and is blocked by) the other for that same hour,
@@ -86,8 +87,9 @@ and can remove any entry.
 its tee sheet to see every slot's payment status (PAID/NOT PAID) alongside player count and handicap.
 A Ready booking (checked in) renders green and locked. Clicking an open slot lets an admin book on
 behalf of any user — whoever's placed in the first slot becomes that booking's owner, not the admin.
-Clicking an existing booking shows the full roster and offers a Cancel action that works regardless
-of who created it. A separate **Carts** tab manages the fleet itself: add a cart by name, disable one
+Clicking an existing booking shows the full roster, its attached cart (if any), and offers a Cancel
+action that works regardless of who created it, plus a Mark as paid action for anything still unpaid.
+A separate **Carts** tab manages the fleet itself: add a cart by name, disable one
 (keeps its booking history but stops it being offered), or remove one entirely (blocked if it's ever
 been linked to a booking — disable it instead). The **Waitlist** tab lists every queued entry across
 every resource (who, for which slot, since when) with a Remove action.
@@ -209,9 +211,9 @@ See "Assumptions and trade-offs" above for why this suite wasn't extended alongs
 
 ## What I'd do next with more time
 
-- **Admin "mark paid" and "move booking" UI** — both operations already exist as API endpoints
-  (`POST /api/admin/bookings/{id}/mark-paid`, `POST /api/admin/bookings/{id}/move`) but have no button
-  in the admin panel yet, so a cash booking currently has no way to be reconciled from the UI.
+- **Admin "move booking" UI** — the endpoint already exists (`POST /api/admin/bookings/{id}/move`)
+  but has no button in the admin panel yet. ("Mark as paid" now does — the booking dialog shows the
+  attached cart, if any, and a Mark as paid action for an unpaid booking.)
 - **Admin user management screen** — `GET/PATCH /api/admin/users` (list, deactivate, promote/demote)
   is fully built but unused by `admin-web`, which only has the resources/bookings views.
 - **Resource creation and activate/deactivate from the UI** — `POST /api/admin/resources` and

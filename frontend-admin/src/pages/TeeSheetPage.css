@@ -45,10 +45,32 @@
   cursor: not-allowed;
 }
 
+.hour-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hour-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.hour-label {
+  flex: 0 0 60px;
+  padding-top: 0.5rem;
+  font-weight: 600;
+  color: var(--color-green-900);
+}
+
 .slot-grid {
   list-style: none;
   padding: 0;
   margin: 0;
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 0.6rem;

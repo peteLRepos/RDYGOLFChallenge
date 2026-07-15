@@ -5,8 +5,8 @@ import type { Booking, Resource, UpdateResourceRequest } from '../api/types';
 import { DateNav } from '../components/DateNav';
 import { BookingDialog } from '../components/BookingDialog';
 import { CHECK_IN_WINDOW_MINUTES } from '../constants';
-import { formatTime, startOfToday } from '../utils/date';
-import { buildSlotsForDate, type AdminSlot } from '../utils/slots';
+import { formatHourLabel, formatTime, startOfToday } from '../utils/date';
+import { buildSlotsForDate, groupSlotsByHour, type AdminSlot } from '../utils/slots';
 import './TeeSheetPage.css';
 
 export function TeeSheetPage() {
@@ -110,55 +110,62 @@ export function TeeSheetPage() {
       {error && <p className="error">{error}</p>}
       {actionError && <p className="error">{actionError}</p>}
 
-      <ul className="slot-grid">
-        {slots.map((slot) => {
-          const booking = slot.booking;
-          const isReady = booking?.status === 'Ready';
-          const canCheckIn =
-            booking &&
-            !isReady &&
-            new Date() >= new Date(slot.start.getTime() - CHECK_IN_WINDOW_MINUTES * 60_000) &&
-            new Date() < slot.end;
+      <div className="hour-rows">
+        {groupSlotsByHour(slots).map((group) => (
+          <div className="hour-row" key={group.hour}>
+            <span className="hour-label">{formatHourLabel(group.slots[0].start)}</span>
+            <ul className="slot-grid">
+              {group.slots.map((slot) => {
+                const booking = slot.booking;
+                const isReady = booking?.status === 'Ready';
+                const canCheckIn =
+                  booking &&
+                  !isReady &&
+                  new Date() >= new Date(slot.start.getTime() - CHECK_IN_WINDOW_MINUTES * 60_000) &&
+                  new Date() < slot.end;
 
-          return (
-            <li key={slot.start.toISOString()}>
-              <button
-                type="button"
-                className={'slot' + (booking ? (isReady ? ' slot-ready' : ' slot-booked') : ' slot-open')}
-                disabled={isReady}
-                onClick={() => setSelectedSlot(slot)}
-              >
-                <span className="slot-time">{formatTime(slot.start.toISOString())}</span>
-                {booking && (
-                  <>
-                    <span className="slot-customer">{booking.customerName}</span>
-                    <span className="slot-status">
-                      {booking.playerCount}/4 · hcp {booking.combinedHandicap}
-                    </span>
-                    <span className={'paid-badge' + (booking.isPaid ? ' paid' : ' unpaid')}>
-                      {booking.isPaid ? 'PAID' : 'NOT PAID'}
-                    </span>
-                    {canCheckIn && (
-                      <span
-                        className="slot-checkin"
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          checkIn(booking.id);
-                        }}
-                      >
-                        {pendingBookingId === booking.id ? 'Checking in…' : 'Check in'}
-                      </span>
-                    )}
-                  </>
-                )}
-                {!booking && <span className="slot-open-label">Open</span>}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                return (
+                  <li key={slot.start.toISOString()}>
+                    <button
+                      type="button"
+                      className={'slot' + (booking ? (isReady ? ' slot-ready' : ' slot-booked') : ' slot-open')}
+                      disabled={isReady}
+                      onClick={() => setSelectedSlot(slot)}
+                    >
+                      <span className="slot-time">{formatTime(slot.start.toISOString())}</span>
+                      {booking && (
+                        <>
+                          <span className="slot-customer">{booking.customerName}</span>
+                          <span className="slot-status">
+                            {booking.playerCount}/4 · hcp {booking.combinedHandicap}
+                          </span>
+                          <span className={'paid-badge' + (booking.isPaid ? ' paid' : ' unpaid')}>
+                            {booking.isPaid ? 'PAID' : 'NOT PAID'}
+                          </span>
+                          {canCheckIn && (
+                            <span
+                              className="slot-checkin"
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                checkIn(booking.id);
+                              }}
+                            >
+                              {pendingBookingId === booking.id ? 'Checking in…' : 'Check in'}
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {!booking && <span className="slot-open-label">Open</span>}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
 
       {selectedSlot && resource && (
         <BookingDialog

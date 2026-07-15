@@ -33,3 +33,19 @@ export function buildSlotsForDate(resource: Resource, date: Date, bookings: Book
   }
   return slots;
 }
+
+// One row per hour, however many sub-hourly slots fall in it — a 10-minute-slot course gets six
+// slots per row, a 60-minute one gets exactly one, no special-casing needed either way.
+export function groupSlotsByHour(slots: AdminSlot[]): { hour: number; slots: AdminSlot[] }[] {
+  const groups: { hour: number; slots: AdminSlot[] }[] = [];
+  for (const slot of slots) {
+    const hour = slot.start.getHours();
+    const current = groups.at(-1);
+    if (current?.hour === hour) {
+      current.slots.push(slot);
+    } else {
+      groups.push({ hour, slots: [slot] });
+    }
+  }
+  return groups;
+}

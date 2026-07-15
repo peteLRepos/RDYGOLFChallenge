@@ -28,3 +28,8 @@ export function formatDayLabel(date: Date): string {
 export function formatTime(isoString: string): string {
   return new Date(isoString).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
+
+/** Hour-only label for a row of sub-hourly slots, e.g. "7 AM" — see TeeSheetPage's hour grouping. */
+export function formatHourLabel(date: Date): string {
+  return date.toLocaleTimeString(undefined, { hour: 'numeric' });
+}
