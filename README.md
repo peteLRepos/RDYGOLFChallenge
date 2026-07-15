@@ -39,7 +39,8 @@ This builds and starts four containers:
 The API automatically applies EF Core migrations and seeds demo data on first startup — no manual DB
 setup:
 - **Resources**: 6/9/18-hole tee-time courses (10-minute slots, priced), two driving range bays, a
-  lesson slot with a pro, and a simulator bay
+  lesson slot with a pro (linked to the 6-Hole Course — see "Lessons and Simulators" below), and
+  three independent simulator bays
 - **Carts**: a 3-cart fleet ("Cart 1"/"Cart 2"/"Cart 3"), managed separately from Resources (see
   "Using it" below)
 - **Users**: an admin account (`admin@testAdmin.com` / `Admin`) and two demo members
@@ -59,9 +60,26 @@ live-checks the fleet's availability for that slot's 2-hour cart window and grey
 "No carts available" if none are free. A slot that's already booked but not full shows how many
 players and their combined handicap (never who they are) and lets you join it the same way (without
 a cart option — see "Assumptions" below). The combined handicap is capped at 120 — go over it and
-Confirm disables itself. **My Bookings** lists everything you've created or joined: cancel a booking
-you created (once it's unpaid), or unbook just yourself from one you joined. A Check-in button
-appears within 15 minutes of a booking's start time.
+Confirm disables itself. If a slot is genuinely full (4/4), an **"Add me to queue"** button appears
+next to it instead — see "Waitlist" below. **My Bookings** lists everything you've created or joined:
+cancel a booking you created (once it's unpaid), or unbook just yourself from one you joined. A
+Check-in button appears within 15 minutes of a booking's start time.
+
+**Lessons and Simulators**: the "Lesson with Pro" resource is linked to the 6-Hole Course — booking
+either one for a given hour automatically blocks (and is blocked by) the other for that same hour,
+so a lesson never gets interrupted by a tee-time booking on the same ground. The three Simulator
+resources otherwise book like anything else, except the dialog replaces the fixed slot length with a
+duration picker (1–5 hours) and drops the cart option (no cart use for simulator sessions) — price is
+a flat €20/player regardless of how many hours are booked.
+
+**Waitlist**: once a slot is completely full, any user can join its queue via "Add me to queue" on
+the tee sheet. Whenever a seat there frees up — someone cancels their whole booking, or is removed
+from a partial one — the longest-waiting queued user is automatically added as a player (or given a
+fresh booking, if the whole thing was cancelled), using the same rules as a normal join (combined
+handicap cap included — an entry that doesn't fit an opening stays queued for the next one, it isn't
+dropped). There's no notification when this happens; the user only finds out by checking **My
+Bookings** or the tee sheet again. Admins see every resource's queue on a dedicated **Waitlist** tab
+and can remove any entry.
 
 **Admin panel** (`admin-web`): login-gated before anything else loads. Browse every resource
 (including inactive ones, which the public site hides), edit a course's price per player, and open
@@ -71,7 +89,8 @@ behalf of any user — whoever's placed in the first slot becomes that booking's
 Clicking an existing booking shows the full roster and offers a Cancel action that works regardless
 of who created it. A separate **Carts** tab manages the fleet itself: add a cart by name, disable one
 (keeps its booking history but stops it being offered), or remove one entirely (blocked if it's ever
-been linked to a booking — disable it instead).
+been linked to a booking — disable it instead). The **Waitlist** tab lists every queued entry across
+every resource (who, for which slot, since when) with a Remove action.
 
 Both apps share a JWT-based auth model: `POST /api/auth/login` / `POST /api/users` (register) return
 a token, sent as `Authorization: Bearer <token>` on subsequent requests. The admin app additionally
@@ -131,6 +150,21 @@ checks the `isAdmin` claim client-side before accepting a login, on top of the A
   `AdminBookingsController`'s existing Move endpoint changes `Start`/`End` but never re-checks whether
   the booking's cart is still free for the shifted 2-hour window, so two bookings could end up
   claiming the same cart. Not addressed in this scope (see "what I'd do next").
+- **Lesson↔6-Hole-Course blocking is computed live, the same way cart availability is** — a
+  `Resource.LinkedResourceId` self-reference, resolved on every availability/overlap check rather than
+  a stored flag, so it can never drift out of sync. The admin tee sheet doesn't yet render this
+  block visually the way the public booking site does (an "Unavailable" slot with no player info) —
+  it still shows as a normal open slot to an admin, though the backend still rejects a conflicting
+  booking attempt on submit either way.
+- **A cancelled booking only re-offers its own slot start to the waitlist, not every slot it
+  spanned.** For most resources that's the same thing, but a cancelled multi-hour Simulator booking
+  frees several consecutive hourly slots at once — only the first hour's queue gets a chance to
+  fill it automatically; the rest just show as open again. A deliberate simplification rather than
+  walking the whole freed range.
+- **Waitlist fulfillment has no notification step.** When a queued user is automatically added to a
+  booking, nothing tells them it happened — they find out by checking My Bookings or the tee sheet
+  again. A real version would need an email/push step the same way a booking confirmation would (see
+  "what I'd do next").
 - **No automated tests were added for anything built after the initial backend foundation** — an
   explicit choice partway through this project to move faster on remaining features, made together
   with whoever's reviewing this. The pre-existing suite (`Domain`/`Application` unit tests, ~130 tests)
@@ -180,6 +214,11 @@ See "Assumptions and trade-offs" above for why this suite wasn't extended alongs
   in the admin panel yet, so a cash booking currently has no way to be reconciled from the UI.
 - **Admin user management screen** — `GET/PATCH /api/admin/users` (list, deactivate, promote/demote)
   is fully built but unused by `admin-web`, which only has the resources/bookings views.
+- **Resource creation and activate/deactivate from the UI** — `POST /api/admin/resources` and
+  `PATCH /api/admin/resources/{id}/active` both exist, but the admin panel only wires up viewing and
+  editing price; adding a new resource or toggling one off currently needs a direct API call.
+- **Admin tee sheet showing lesson↔6-hole-course blocks visually**, and **email notification when a
+  waitlist entry is fulfilled**, both noted above as known gaps.
 - **Editing an existing booking's roster from the admin dialog** — right now admin can create a new
   booking or cancel an existing one, but can't add/remove players from a booking that's already in
   progress the way the public "join"/"unbook" flow lets a regular user do for their own bookings.

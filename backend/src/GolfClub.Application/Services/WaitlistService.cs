@@ -45,6 +45,12 @@ public class WaitlistService : IWaitlistService
         if (booking is null || !booking.IsFull)
             throw new DomainException("This slot isn't full — book it directly instead of joining the queue.");
 
+        // Without this, an already-playing user's entry could never be fulfilled — FulfillAsync's
+        // AddPlayer call would always fail with "already in the booking" and leave it stuck in the
+        // queue forever, since they can never NOT already be in it.
+        if (booking.Players.Any(p => p.UserId == userId))
+            throw new DomainException("You're already booked into this slot.");
+
         if (await _waitlist.ExistsAsync(resourceId, slotStart, userId, ct))
             throw new DomainException("You're already on the queue for this slot.");
 
