@@ -21,26 +21,28 @@ public static class DbSeeder
         if (await context.Resources.AnyAsync())
             return;
 
-        var sixHoleCourse = new Resource("6-Hole Course", ResourceType.TeeTime, 10, new TimeOnly(7, 0), new TimeOnly(19, 0), pricePerPlayer: 10m);
+        // 07:00-23:00 for everything bookable, except lessons (08:00-18:00 — a pro's normal
+        // working day, not the club's full opening hours).
+        var sixHoleCourse = new Resource("6-Hole Course", ResourceType.TeeTime, 10, new TimeOnly(7, 0), new TimeOnly(23, 0), pricePerPlayer: 10m);
 
         var resources = new List<Resource>
         {
             sixHoleCourse,
-            new("9-Hole Course", ResourceType.TeeTime, 10, new TimeOnly(7, 0), new TimeOnly(19, 0), pricePerPlayer: 15m),
-            new("18-Hole Course", ResourceType.TeeTime, 10, new TimeOnly(7, 0), new TimeOnly(19, 0), pricePerPlayer: 22m),
-            new("Driving Range Bay 1", ResourceType.DrivingRangeBay, 60, new TimeOnly(7, 0), new TimeOnly(21, 0)),
-            new("Driving Range Bay 2", ResourceType.DrivingRangeBay, 60, new TimeOnly(7, 0), new TimeOnly(21, 0)),
+            new("9-Hole Course", ResourceType.TeeTime, 10, new TimeOnly(7, 0), new TimeOnly(23, 0), pricePerPlayer: 15m),
+            new("18-Hole Course", ResourceType.TeeTime, 10, new TimeOnly(7, 0), new TimeOnly(23, 0), pricePerPlayer: 22m),
+            new("Driving Range Bay 1", ResourceType.DrivingRangeBay, 60, new TimeOnly(7, 0), new TimeOnly(23, 0)),
+            new("Driving Range Bay 2", ResourceType.DrivingRangeBay, 60, new TimeOnly(7, 0), new TimeOnly(23, 0)),
             // 1-hour slots, linked to the 6-Hole Course: booking a lesson also blocks that same
             // hour on the 6-Hole Course, and vice versa — see BookingService's bidirectional
             // overlap check.
-            new("Lesson with Pro - Alex", ResourceType.LessonSlot, 60, new TimeOnly(9, 0), new TimeOnly(17, 0), linkedResourceId: sixHoleCourse.Id),
+            new("Lesson with Pro - Conny", ResourceType.LessonSlot, 60, new TimeOnly(8, 0), new TimeOnly(18, 0), linkedResourceId: sixHoleCourse.Id),
             // Three identical, independently-bookable simulator bays — grid slots are 1 hour wide,
             // but a single booking can span 1-5 of them (see BookingService's Simulator duration
             // check). Flat per-player price regardless of duration, same model as every other
             // priced resource.
-            new("Simulator 1", ResourceType.Simulator, 60, new TimeOnly(8, 0), new TimeOnly(22, 0), pricePerPlayer: 20m),
-            new("Simulator 2", ResourceType.Simulator, 60, new TimeOnly(8, 0), new TimeOnly(22, 0), pricePerPlayer: 20m),
-            new("Simulator 3", ResourceType.Simulator, 60, new TimeOnly(8, 0), new TimeOnly(22, 0), pricePerPlayer: 20m),
+            new("Simulator 1", ResourceType.Simulator, 60, new TimeOnly(7, 0), new TimeOnly(23, 0), pricePerPlayer: 20m),
+            new("Simulator 2", ResourceType.Simulator, 60, new TimeOnly(7, 0), new TimeOnly(23, 0), pricePerPlayer: 20m),
+            new("Simulator 3", ResourceType.Simulator, 60, new TimeOnly(7, 0), new TimeOnly(23, 0), pricePerPlayer: 20m),
         };
 
         await context.Resources.AddRangeAsync(resources);

@@ -90,11 +90,23 @@
   color: var(--color-green-900);
 }
 
+.booking-dialog-cart {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
 .handicap-over {
   color: var(--color-danger);
 }
 
+.booking-dialog-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .booking-cancel {
+  flex: 1;
   background: none;
   border: 1px solid var(--color-danger);
   color: var(--color-danger);
@@ -105,6 +117,22 @@
 }
 
 .booking-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.booking-mark-paid {
+  flex: 1;
+  background: var(--color-green-700);
+  border: none;
+  color: var(--color-white);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.booking-mark-paid:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

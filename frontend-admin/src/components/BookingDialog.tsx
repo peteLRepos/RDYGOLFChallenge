@@ -174,6 +174,7 @@ function ViewDialog({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
 
   const handleCancel = async () => {
     setError(null);
@@ -185,6 +186,19 @@ function ViewDialog({
       setError(err instanceof ApiError ? err.message : 'Could not cancel this booking.');
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    setError(null);
+    setIsMarkingPaid(true);
+    try {
+      await api.post(`/api/admin/bookings/${booking.id}/mark-paid`);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not mark this booking as paid.');
+    } finally {
+      setIsMarkingPaid(false);
     }
   };
 
@@ -217,10 +231,18 @@ function ViewDialog({
           <span>{booking.isPaid ? 'Paid' : 'Not paid'}</span>
           <span>{booking.status}</span>
         </div>
+        <p className="booking-dialog-cart">Cart: {booking.cartName ?? 'None'}</p>
         {error && <p className="modal-error">{error}</p>}
-        <button type="button" className="booking-cancel" disabled={isCancelling} onClick={handleCancel}>
-          {isCancelling ? 'Cancelling…' : 'Cancel booking'}
-        </button>
+        <div className="booking-dialog-actions">
+          {!booking.isPaid && (
+            <button type="button" className="booking-mark-paid" disabled={isMarkingPaid} onClick={handleMarkPaid}>
+              {isMarkingPaid ? 'Marking…' : 'Mark as paid'}
+            </button>
+          )}
+          <button type="button" className="booking-cancel" disabled={isCancelling} onClick={handleCancel}>
+            {isCancelling ? 'Cancelling…' : 'Cancel booking'}
+          </button>
+        </div>
       </div>
     </Modal>
   );

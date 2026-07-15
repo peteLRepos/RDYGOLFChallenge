@@ -52,7 +52,9 @@ export function MyBookingsPage() {
   };
 
   const cancelBooking = (id: string) => runAction(id, () => api.delete(`/api/bookings/${id}`));
-  const unbookMe = (id: string) => runAction(id, () => api.delete(`/api/bookings/${id}/players/${user!.id}`));
+  const removePlayer = (bookingId: string, targetUserId: string) =>
+    runAction(bookingId, () => api.delete(`/api/bookings/${bookingId}/players/${targetUserId}`));
+  const unbookMe = (id: string) => removePlayer(id, user!.id);
   const checkIn = (id: string) => runAction(id, () => api.post(`/api/bookings/${id}/checkin`));
 
   return (
@@ -88,17 +90,42 @@ export function MyBookingsPage() {
               </div>
 
               <ul className="booking-players">
-                {booking.players.map((player) => (
-                  <li key={player.userId}>
-                    {player.name} · hcp {player.handicap} · {player.paymentMethod}
-                    {player.userId === booking.bookerId && ' (booker)'}
-                  </li>
-                ))}
+                {booking.players.map((player) => {
+                  // A player I personally added (as booker, inviting a guest at creation or
+                  // afterward) — not myself, not the booker, who can only ever be removed by
+                  // cancelling the whole booking (see Booking.RemovePlayer's domain rule).
+                  const canRemove =
+                    isPending &&
+                    player.userId !== booking.bookerId &&
+                    player.userId !== user!.id &&
+                    player.addedByUserId === user!.id;
+
+                  return (
+                    <li key={player.userId}>
+                      <span>
+                        {player.name} · hcp {player.handicap} · {player.paymentMethod}
+                        {player.userId === booking.bookerId && ' (booker)'}
+                      </span>
+                      {canRemove && (
+                        <button
+                          type="button"
+                          className="player-remove"
+                          disabled={isBusy}
+                          onClick={() => removePlayer(booking.id, player.userId)}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
 
               <div className="booking-card-footer">
                 <span>
-                  Total €{booking.totalPrice.toFixed(2)} · {booking.isPaid ? 'Paid' : 'Not paid'}
+                  Total €{booking.totalPrice.toFixed(2)}
+                  {booking.cartName && ` · Cart: ${booking.cartName}`} ·{' '}
+                  {booking.isPaid ? 'Paid' : 'Not paid'}
                 </span>
                 <div className="booking-actions">
                   {canCheckIn && (
