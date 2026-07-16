@@ -48,12 +48,19 @@ function LoginForm({ onModeChange, onClose }: FormProps) {
       <form className="modal-form" onSubmit={handleSubmit}>
         <label>
           Email
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </label>
         <label>
           Password
           <input
             type="password"
+            autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -110,16 +117,23 @@ function RegisterForm({ onModeChange, onClose }: FormProps) {
       <form className="modal-form" onSubmit={handleSubmit}>
         <label>
           Name
-          <input required value={name} onChange={(e) => setName(e.target.value)} />
+          <input autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
         </label>
         <label>
           Email
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </label>
         <label>
           Password
           <input
             type="password"
+            autoComplete="new-password"
             required
             minLength={8}
             value={password}
@@ -193,7 +207,13 @@ function ForgotPasswordForm({ onModeChange, onClose }: FormProps) {
         <form className="modal-form" onSubmit={handleSubmit}>
           <label>
             Email
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </label>
           {error && <p className="modal-error">{error}</p>}
           <button type="submit" className="modal-submit" disabled={isSubmitting}>

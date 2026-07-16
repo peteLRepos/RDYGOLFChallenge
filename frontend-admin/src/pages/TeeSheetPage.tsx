@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type { Booking, Resource, UpdateResourceRequest } from '../api/types';
@@ -21,9 +21,13 @@ export function TeeSheetPage() {
   const [isSavingPrice, setIsSavingPrice] = useState(false);
   const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<AdminSlot | null>(null);
+  // Bumped on every load call, so a response from an earlier call — e.g. navigating between two
+  // resources before the first request finishes — can tell it's stale and skip applying itself.
+  const loadRequestId = useRef(0);
 
   const load = useCallback(() => {
     if (!resourceId) return;
+    const requestId = ++loadRequestId.current;
     setIsLoading(true);
     setError(null);
     Promise.all([
@@ -31,12 +35,19 @@ export function TeeSheetPage() {
       api.get<Booking[]>('/api/admin/bookings'),
     ])
       .then(([r, b]) => {
+        if (requestId !== loadRequestId.current) return;
         setResource(r);
         setPriceInput(r.pricePerPlayer != null ? String(r.pricePerPlayer) : '');
         setBookings(b);
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load the tee sheet.'))
-      .finally(() => setIsLoading(false));
+      .catch((err) => {
+        if (requestId !== loadRequestId.current) return;
+        setError(err instanceof ApiError ? err.message : 'Failed to load the tee sheet.');
+      })
+      .finally(() => {
+        if (requestId !== loadRequestId.current) return;
+        setIsLoading(false);
+      });
   }, [resourceId]);
 
   useEffect(() => {
