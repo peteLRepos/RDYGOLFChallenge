@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type { Booking, Resource, TimeSlot } from '../api/types';
@@ -69,7 +69,12 @@ export function TeeSheetPage() {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [queuedSlotStarts, setQueuedSlotStarts] = useState<Set<string>>(new Set());
+  const [joiningSlotStart, setJoiningSlotStart] = useState<string | null>(null);
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
+  // Bumped on every loadSlots call, so a response from an earlier call — e.g. someone double-clicks
+  // "Next day" before the first request finishes — can tell it's stale and skip applying itself,
+  // rather than racing the newer request and briefly showing the wrong day's slots.
+  const slotsRequestId = useRef(0);
 
   useEffect(() => {
     setIsResourceLoading(true);
@@ -97,13 +102,23 @@ export function TeeSheetPage() {
 
   const loadSlots = useCallback(() => {
     if (!resourceId) return;
+    const requestId = ++slotsRequestId.current;
     setIsLoading(true);
     setError(null);
     api
       .get<TimeSlot[]>(`/api/resources/${resourceId}/availability?date=${toDateKey(date)}`)
-      .then(setSlots)
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load the tee sheet.'))
-      .finally(() => setIsLoading(false));
+      .then((data) => {
+        if (requestId !== slotsRequestId.current) return;
+        setSlots(data);
+      })
+      .catch((err) => {
+        if (requestId !== slotsRequestId.current) return;
+        setError(err instanceof ApiError ? err.message : 'Failed to load the tee sheet.');
+      })
+      .finally(() => {
+        if (requestId !== slotsRequestId.current) return;
+        setIsLoading(false);
+      });
   }, [resourceId, date]);
 
   useEffect(() => {
@@ -134,11 +149,14 @@ export function TeeSheetPage() {
     if (!resourceId) return;
 
     setError(null);
+    setJoiningSlotStart(slot.start);
     try {
       await api.post('/api/waitlist', { resourceId, slotStart: slot.start });
       setQueuedSlotStarts((prev) => new Set(prev).add(slot.start));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not join the queue.');
+    } finally {
+      setJoiningSlotStart(null);
     }
   };
 
@@ -172,6 +190,7 @@ export function TeeSheetPage() {
                     const clickable = isSlotClickable(slot);
                     const queueable = isQueueable(slot);
                     const isQueued = queuedSlotStarts.has(slot.start);
+                    const isJoiningThisSlot = joiningSlotStart === slot.start;
 
                     return (
                       <li key={slot.start}>
@@ -201,10 +220,10 @@ export function TeeSheetPage() {
                           <button
                             type="button"
                             className="slot-queue-btn"
-                            disabled={isQueued}
+                            disabled={isQueued || isJoiningThisSlot}
                             onClick={() => handleJoinQueue(slot)}
                           >
-                            {isQueued ? "You're queued" : 'Add me to queue'}
+                            {isQueued ? "You're queued" : isJoiningThisSlot ? 'Joining…' : 'Add me to queue'}
                           </button>
                         )}
                       </li>

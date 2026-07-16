@@ -17,7 +17,7 @@ export function LoginScreen() {
     try {
       await login({ email, password });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : (err as Error).message || 'Login failed.');
+      setError(err instanceof ApiError ? err.message : 'Login failed.');
     } finally {
       setIsSubmitting(false);
     }
