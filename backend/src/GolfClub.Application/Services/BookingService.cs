@@ -168,7 +168,7 @@ public class BookingService : IBookingService
         booking.Cancel();
         // Only the booking's own slot start is re-offered to the queue — a cancelled multi-hour
         // simulator booking frees every hour it spanned, but re-checking just the first hour keeps
-        // this from having to walk the whole range (a documented simplification, see README).
+        // this from having to walk the whole range (a deliberate simplification).
         // currentBooking: null — the just-cancelled booking no longer occupies the slot.
         await _waitlistService.FulfillAsync(resource, booking.Start, currentBooking: null, ct);
         await _unitOfWork.SaveChangesAsync(ct);
