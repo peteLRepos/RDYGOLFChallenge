@@ -79,8 +79,10 @@ public class UserService : IUserService
     public async Task<ForgotPasswordResponseDto> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct = default)
     {
         // Always returns 200 rather than a 404 for an unknown email — see ForgotPasswordResponseDto.
+        // Tracked lookup, not GetByEmailAsync: ResetPassword below mutates this entity, and an
+        // untracked one would let SaveChangesAsync silently no-op instead of persisting the reset.
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var user = await _users.GetByEmailAsync(normalizedEmail, ct);
+        var user = await _users.GetTrackedByEmailAsync(normalizedEmail, ct);
         if (user is null)
             return new ForgotPasswordResponseDto(AccountFound: false, NewPassword: null);
 

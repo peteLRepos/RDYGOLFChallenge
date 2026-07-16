@@ -19,6 +19,9 @@ public class UserRepository : IUserRepository
     public Task<User?> GetByEmailAsync(string email, CancellationToken ct = default) =>
         _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email, ct);
 
+    public Task<User?> GetTrackedByEmailAsync(string email, CancellationToken ct = default) =>
+        _context.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+
     public async Task<List<User>> SearchByNameAsync(string query, CancellationToken ct = default)
     {
         // Escape LIKE/ILIKE wildcard characters in the query itself (Postgres's default ILIKE
