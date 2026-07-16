@@ -113,7 +113,9 @@ export function TeeSheetPage() {
       <div className="hour-rows">
         {groupSlotsByHour(slots).map((group) => (
           <div className="hour-row" key={group.hour}>
-            <span className="hour-label">{formatHourLabel(group.slots[0].start)}</span>
+            {group.slots.length > 1 && (
+              <span className="hour-label">{formatHourLabel(group.slots[0].start)}</span>
+            )}
             <ul className="slot-grid">
               {group.slots.map((slot) => {
                 const booking = slot.booking;
