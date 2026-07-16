@@ -15,6 +15,14 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <!-- Pin two transitive dependencies (pulled in via the test SDK/coverlet chain, not by our own
+         code) past known high-severity DoS advisories — GHSA-7jgj-8wvc-jh57 and GHSA-cmhx-cq75-c4mj.
+         Deliberately not bumping the top-level test packages themselves to get here: newer major
+         versions of FluentAssertions/Microsoft.NET.Test.Sdk/xunit.runner.visualstudio carry their
+         own risk (FluentAssertions 8+ in particular changed its commercial licensing terms), and
+         this pin fixes the actual vulnerability without touching any of that. -->
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
+    <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
   </ItemGroup>
 
   <ItemGroup>
